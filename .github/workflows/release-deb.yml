@@ -1,0 +1,40 @@
+name: Build Debian package
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  deb:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source files
+        run: |
+          test -f app.py
+          test -f mountain-bg.png
+          python3 -m py_compile app.py
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            v="${GITHUB_REF_NAME#v}"
+          else
+            v="0.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "value=$v" >> "$GITHUB_OUTPUT"
+      - name: Build
+        run: bash packaging/build-deb.sh "${{ steps.version.outputs.value }}"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestion-stockage-deb
+          path: dist/*.deb
+      - name: Publish GitHub release for version tags
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/*.deb --generate-notes --verify-tag
