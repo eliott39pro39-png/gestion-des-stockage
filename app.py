@@ -3,7 +3,7 @@ import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threadin
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.2'
+VERSION='27.2.1'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
