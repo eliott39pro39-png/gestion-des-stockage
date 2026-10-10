@@ -1,0 +1,46 @@
+name: Import verified application sources
+on:
+  push:
+    branches: [main]
+    paths:
+      - gestion-stockage-sources-27.2.1.zip
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Validate and extract source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f gestion-stockage-sources-27.2.1.zip
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          archive = Path("gestion-stockage-sources-27.2.1.zip")
+          with zipfile.ZipFile(archive) as z:
+              names = z.namelist()
+              assert "app.py" in names and "mountain-bg.png" in names, "Missing required files"
+              assert any(x.startswith("versions/") for x in names), "Missing versions"
+              for name in names:
+                  p = Path(name)
+                  assert not p.is_absolute() and ".." not in p.parts, "Unsafe path"
+                  assert name == "app.py" or name == "mountain-bg.png" or (name.startswith("versions/") and name.endswith("/app.py")), f"Unexpected entry: {name}"
+              z.extractall(".")
+          PY
+          python3 -m py_compile app.py
+          find versions -name app.py -exec python3 -m py_compile {} +
+      - name: Commit extracted sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.py mountain-bg.png versions/
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: import application sources 27.2.1"
+            git push
+          fi
