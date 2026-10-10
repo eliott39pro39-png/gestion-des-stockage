@@ -5,7 +5,7 @@ Application de bureau Linux en Python et GTK4 pour explorer, organiser et nettoy
 ## État du projet
 
 - Version installable connue : **27.2.1** (paquet Debian `gestion-stockage`, version du paquet `27.2-2`).
-- La publication du code source et des paquets officiels sur ce dépôt est en préparation.
+- Le code source est publié et GitHub Actions construit et vérifie les paquets Debian. Une préversion téléchargeable est publiée après validation de la compilation ; un essai de l'interface sur Ubuntu reste nécessaire.
 - **Aucune mise à jour automatique n'est encore activée** pour les installations existantes.
 
 ## Fonctionnalités
@@ -27,4 +27,4 @@ Ne pas exécuter de commandes téléchargées depuis Internet sans vérification
 
 ## Développement
 
-Les sources de la version 27.2.1 doivent encore être ajoutées et vérifiées avant toute nouvelle publication.
+Les sources de la version 27.2.1 sont présentes. La vérification automatisée contrôle la syntaxe Python et le contenu du paquet Debian, mais ne remplace pas un test fonctionnel de l'interface GTK4.
