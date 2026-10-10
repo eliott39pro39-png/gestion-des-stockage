@@ -58,6 +58,18 @@ jobs:
           name: gestion-stockage-deb-${{ steps.version.outputs.value }}
           path: dist/*.deb
           if-no-files-found: error
+      - name: Publish tested preview release on main
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "v27.2.1" >/dev/null 2>&1; then
+            echo "Release v27.2.1 already exists; not overwriting it."
+          else
+            gh release create "v27.2.1" dist/*.deb --target "${GITHUB_SHA}" --title "Gestion de stockage 27.2.1 (préversion)" --notes "Paquet Debian construit et vérifié automatiquement sur Ubuntu 24.04. La compilation et le contenu sont validés ; le fonctionnement de l'interface graphique doit encore être testé sur un poste Ubuntu avant de considérer cette version comme stable." --prerelease
+          fi
       - name: Publish release only for explicit version tags
         if: github.ref_type == 'tag'
         env:
