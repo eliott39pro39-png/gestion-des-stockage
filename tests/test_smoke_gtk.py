@@ -6,7 +6,10 @@ from gi.repository import GLib
 import app
 
 application = app.App()
-window = app.Window(application)
+application.do_activate()
+window = application.get_windows()[0]
+application.do_activate()
+assert len(application.get_windows()) == 1, 'Repeated activation created another window'
 with tempfile.TemporaryDirectory() as directory:
     root = pathlib.Path(directory)
     (root / "folder").mkdir()
