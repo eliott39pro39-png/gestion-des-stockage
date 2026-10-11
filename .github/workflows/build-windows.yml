@@ -78,18 +78,5 @@ jobs:
           path: dist/GestionStockage-Windows-27.4.0-preview.zip
           if-no-files-found: error
 
-      - name: Publish official Windows 27.4.0 archive
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: msys2 {0}
-        run: |
-          for attempt in $(seq 1 30); do
-            if gh release view v27.4.0 >/dev/null 2>&1; then
-              gh release upload v27.4.0 dist/GestionStockage-Windows-27.4.0-preview.zip --clobber
-              exit 0
-            fi
-            sleep 20
-          done
-          echo "Linux release was not created; Windows archive remains available in Actions."
-          exit 1
+      # Official release upload is performed only after a reviewed release is created.
+      # The preview ZIP remains downloadable from the successful Actions run.
