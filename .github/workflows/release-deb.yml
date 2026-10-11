@@ -2,7 +2,7 @@ name: Build Debian package
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'feature/linux-27.3-fluid']
+    branches: [main, 'feature/linux-27.4-updater']
     tags: ['v*']
     paths:
       - 'app.py'
