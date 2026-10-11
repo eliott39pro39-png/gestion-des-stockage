@@ -228,6 +228,8 @@ class Window(Gtk.ApplicationWindow):
   self.btn(self.content,'📋 À propos et nouveautés',self.about_page)
   self.btn(self.content,'Réinitialiser les préférences',lambda *_:self.dialog('Réinitialiser les paramètres ?', 'Tes fichiers personnels ne seront pas touchés.',self.reset_prefs))
  def versions_page(self,*_):
+  if os.environ.get('GESTION_STOCKAGE_ARCHIVE_CHILD')=='1':
+   self.dialog('Navigation désactivée','Les anciennes versions ne peuvent pas ouvrir d’autres anciennes versions.');return
   self.clear();self.mark_page('Anciennes versions');self.heading('ANCIENNES VERSIONS  ◷')
   self.info('Les anciennes versions sont des éditions de test. Les graphiques ont été retirés des copies fournies dans cette archive.')
   archive=pathlib.Path(__file__).resolve().parent/'versions'
@@ -247,6 +249,7 @@ class Window(Gtk.ApplicationWindow):
     row.append(Gtk.Label(label='Version '+version+' — bugguée',hexpand=True,xalign=0))
     self.btn(row,'Ouvrir ⚠',lambda _b,p=script,v=version:self.dialog('Version bugguée','Cette version a eu des problèmes connus. Les graphiques ont été retirés de cette copie. Ouvrir quand même ?',lambda:self.launch_beta(p,v)))
  def launch_beta(self,script,version):
+  if os.environ.get('GESTION_STOCKAGE_ARCHIVE_CHILD')=='1':return
   try:
    subprocess.Popen([sys.executable,str(script)],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
    self.notify('Version bêta lancée','Gestion de stockage '+version)

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex
+import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex, hashlib
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.4.0'
+VERSION='27.5.0'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
@@ -94,7 +94,7 @@ class Window(Gtk.ApplicationWindow):
   sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);sidebar.set_size_request(155,-1); sidebar.set_margin_top(20); sidebar.set_margin_start(12); sidebar.set_margin_end(12); sidebar.add_css_class('sidebar'); side_scroll=Gtk.ScrolledWindow();side_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);side_scroll.set_min_content_width(178);side_scroll.set_child(sidebar);root.append(side_scroll)
   title=Gtk.Label(label='▣  NEON STORAGE',xalign=0); title.add_css_class('brand'); sidebar.append(title)
   self.nav_buttons=[]
-  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
+  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('◎','Radar doublons',self.duplicates_page),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
    b=Gtk.Button();b.set_halign(Gtk.Align.FILL)
    b.connect('clicked',lambda _b,f=callback:f());sidebar.append(b)
    b.set_tooltip_text('Aller vers '+name);self.nav_buttons.append((b,icon,name))
@@ -363,6 +363,9 @@ class Window(Gtk.ApplicationWindow):
   return False
 
  def downloads_dir(self):
+  if sys.platform=='win32':
+   folder=HOME/'Downloads'
+   if folder.is_dir():return folder
   for name in ('Téléchargements','Downloads'):
    folder=HOME/name
    if folder.is_dir():return folder
@@ -413,7 +416,7 @@ class Window(Gtk.ApplicationWindow):
     self.btn(row,'Ouvrir ⚠',lambda _b,p=script,v=version:self.dialog('Version bugguée','Cette version a eu des problèmes connus. Les graphiques ont été retirés de cette copie. Ouvrir quand même ?',lambda:self.launch_beta(p,v)))
  def launch_beta(self,script,version):
   try:
-   subprocess.Popen([sys.executable,str(script)],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   subprocess.Popen([sys.executable,str(script)],env={**os.environ,'GESTION_STOCKAGE_ARCHIVE_CHILD':'1'},start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
    self.notify('Version bêta lancée','Gestion de stockage '+version)
   except OSError as exc:self.dialog('Impossible de lancer la version',str(exc))
  def about_page(self,*_):
@@ -462,6 +465,92 @@ class Window(Gtk.ApplicationWindow):
  def reset_prefs(self):
   self.prefs={};self.theme='system';self.accent='neon';self.show_hidden=False;self.background_style='aurora';self.density='comfortable';self.nav_style='icons';self.update_nav_labels()
   self.prefs['start_dir']=str(HOME);self.apply_theme();self.update_theme_label();self.save_prefs();self.settings_page()
+ def duplicates_page(self,*_):
+  self.clear();self.mark_page('Doublons');self.heading('RADAR DES DOUBLONS  ◈')
+  self.info('Analyse par contenu SHA-256. Aucun fichier sélectionné par défaut. Vérifie les chemins avant toute mise à la corbeille.')
+  bar=Gtk.Box(spacing=7);self.content.append(bar)
+  folder=Gtk.Entry(text=str(HOME),hexpand=True);bar.append(folder)
+  self.btn(bar,'Rechercher',lambda *_:self.start_duplicates(folder.get_text()))
+  self.btn(bar,'Annuler',lambda *_:getattr(self,'_duplicates_cancel',threading.Event()).set())
+  self.duplicate_status=Gtk.Label(label='Choisis un dossier.',xalign=0,wrap=True);self.content.append(self.duplicate_status)
+  self.duplicate_results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5);self.content.append(self.duplicate_results)
+  self.duplicate_checks=[];self.duplicate_groups=[]
+  self.btn(self.content,'Mettre la sélection à la corbeille',self.trash_duplicates)
+ def start_duplicates(self,path):
+  if getattr(self,'_duplicates_busy',False):return
+  root=pathlib.Path(path).expanduser()
+  if not root.is_dir():self.duplicate_status.set_text('Dossier inaccessible.');return
+  self._duplicates_busy=True;self._duplicates_cancel=threading.Event()
+  self.duplicate_status.set_text('Analyse en cours, 30 000 fichiers maximum…')
+  while child:=self.duplicate_results.get_first_child():self.duplicate_results.remove(child)
+  self.duplicate_checks=[];self.duplicate_groups=[]
+  def worker():
+   sizes={};pending=[root];count=0;errors=0
+   while pending and count<30000 and not self._duplicates_cancel.is_set():
+    try:
+     with os.scandir(pending.pop()) as entries:
+      for item in entries:
+       if self._duplicates_cancel.is_set() or count>=30000:break
+       try:
+        if item.is_symlink():continue
+        if item.is_dir(follow_symlinks=False):pending.append(pathlib.Path(item.path))
+        elif item.is_file(follow_symlinks=False):
+         st=item.stat(follow_symlinks=False);count+=1
+         if st.st_size:sizes.setdefault(st.st_size,[]).append(pathlib.Path(item.path))
+       except OSError:errors+=1
+    except OSError:errors+=1
+   hashes={}
+   for size,paths in sizes.items():
+    if self._duplicates_cancel.is_set():break
+    if len(paths)<2:continue
+    for p in paths:
+     if self._duplicates_cancel.is_set():break
+     try:
+      if p.is_symlink() or not p.is_file() or p.stat().st_size!=size:continue
+      h=hashlib.sha256()
+      with p.open('rb') as stream:
+       while not self._duplicates_cancel.is_set():
+        chunk=stream.read(1048576)
+        if not chunk:break
+        h.update(chunk)
+      if not self._duplicates_cancel.is_set():hashes.setdefault((size,h.digest()),[]).append(p)
+     except OSError:errors+=1
+   groups=[(key[0],paths) for key,paths in hashes.items() if len(paths)>1]
+   GLib.idle_add(self.finish_duplicates,groups,count,errors,bool(pending) or count>=30000 or self._duplicates_cancel.is_set())
+  threading.Thread(target=worker,daemon=True).start()
+ def finish_duplicates(self,groups,count,errors,partial):
+  self._duplicates_busy=False
+  if self._active_page!='Doublons':return False
+  saving=sum(size*(len(paths)-1) for size,paths in groups)
+  self.duplicate_status.set_text(f'{count} fichiers analysés · {len(groups)} groupes · jusqu’à {saving/1048576:.1f} Mo récupérables · {errors} erreurs'+(' · résultats partiels' if partial else ''))
+  self.duplicate_groups=[paths for _size,paths in groups]
+  for size,paths in groups:
+   group=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=3);group.add_css_class('release-card')
+   group.append(Gtk.Label(label=f'{len(paths)} copies identiques · {size/1048576:.1f} Mo chacune',xalign=0))
+   for p in paths:
+    check=Gtk.CheckButton(label=str(p));group.append(check);self.duplicate_checks.append((check,p))
+   self.duplicate_results.append(group)
+  return False
+ def trash_duplicates(self,*_):
+  chosen=[p for check,p in getattr(self,'duplicate_checks',[]) if check.get_active()]
+
+  if not chosen:self.dialog('Aucune sélection','Coche uniquement les copies à mettre à la corbeille.');return
+  if any(all(p in chosen for p in group) for group in self.duplicate_groups):
+   self.dialog('Sélection dangereuse','Conserve au moins une copie dans chaque groupe de doublons.');return
+  self.dialog('Confirmer la mise à la corbeille',f'{len(chosen)} fichier(s) sélectionné(s). Les originaux non sélectionnés seront conservés.',lambda:self.execute_trash_duplicates(chosen))
+ def execute_trash_duplicates(self,paths):
+  done=0;errors=0
+  for p in paths:
+   try:
+    if p.is_symlink() or not p.is_file():continue
+    if sys.platform=='win32':
+     from send2trash import send2trash
+     send2trash(str(p))
+    else:Gio.File.new_for_path(str(p)).trash(None)
+    done+=1
+   except Exception:errors+=1
+  self.dialog('Résultat',f'{done} fichier(s) mis à la corbeille · {errors} erreur(s).')
+  self.duplicates_page()
  def storage_detective(self,*_):
   """Read-only, bounded large-file inventory, on Linux and Windows."""
   self.clear();self.mark_page('Détective stockage');self.heading('DÉTECTIVE DE STOCKAGE  ◈')
@@ -470,27 +559,34 @@ class Window(Gtk.ApplicationWindow):
   controls=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(controls)
   folder=Gtk.Entry(text=str(HOME),hexpand=True);controls.append(folder)
   self.btn(controls,'Analyser',lambda *_:self.start_storage_scan(folder.get_text()))
+  self.btn(controls,'Annuler',lambda *_:self.cancel_storage_scan())
   self.storage_scan_status=Gtk.Label(label='Choisis un dossier et lance l’analyse.',xalign=0,wrap=True)
   self.content.append(self.storage_scan_status)
   self.storage_scan_results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6)
   self.content.append(self.storage_scan_results)
+ def cancel_storage_scan(self):
+  if getattr(self,'_storage_scanning',False):
+   self._storage_cancel.set()
+   self.storage_scan_status.set_text('Annulation demandée…')
  def start_storage_scan(self,raw_path):
   if getattr(self,'_storage_scanning',False):
    self.storage_scan_status.set_text('Une analyse est déjà en cours.');return
   root=pathlib.Path(raw_path).expanduser()
   if not root.is_dir():
    self.storage_scan_status.set_text('Dossier introuvable ou inaccessible.');return
+  self._storage_cancel=threading.Event()
   self._storage_scanning=True
   self.storage_scan_status.set_text('Analyse en cours (maximum 30 000 fichiers)…')
   while child:=self.storage_scan_results.get_first_child():self.storage_scan_results.remove(child)
   def worker():
    import heapq
    largest=[];count=0;errors=0;total=0;pending=[root]
-   while pending and count<30000:
+   while pending and count<30000 and not self._storage_cancel.is_set():
     directory=pending.pop()
     try:
      with os.scandir(directory) as entries:
       for item in entries:
+       if self._storage_cancel.is_set():break
        try:
         if item.is_symlink():continue
         if item.is_dir(follow_symlinks=False):
@@ -504,16 +600,16 @@ class Window(Gtk.ApplicationWindow):
        except (OSError,PermissionError):errors+=1
     except (OSError,PermissionError):errors+=1
    results=sorted(largest,reverse=True)
-   GLib.idle_add(self.finish_storage_scan,root,results,count,total,errors,bool(pending))
+   GLib.idle_add(self.finish_storage_scan,root,results,count,total,errors,bool(pending) or count>=30000,self._storage_cancel.is_set())
   threading.Thread(target=worker,daemon=True).start()
- def finish_storage_scan(self,root,results,count,total,errors,limited):
+ def finish_storage_scan(self,root,results,count,total,errors,limited,cancelled=False):
   self._storage_scanning=False
   if self._active_page!='Détective stockage':return False
   def pretty(n):
    for unit in ('o','Ko','Mo','Go','To'):
     if n<1024 or unit=='To':return f'{n:.1f} {unit}'
     n/=1024
-  suffix=' — limite de 30 000 fichiers atteinte, résultats partiels' if limited else ''
+  suffix=' — analyse annulée, résultats partiels' if cancelled else (' — limite de 30 000 fichiers atteinte, résultats partiels' if limited else '')
   self.storage_scan_status.set_text(f'{count} fichiers analysés · {pretty(total)} au total · {errors} accès impossibles'+suffix)
   if not results:self.info('Aucun fichier trouvé dans ce dossier.')
   for size,path in results:
@@ -558,7 +654,11 @@ class Window(Gtk.ApplicationWindow):
    self.btn(tools,label,callback)
   self.info('F11 : plein écran • Échap : quitter le plein écran • Ctrl+2 : téléchargements')
  def files(self,*_):
-  self.clear();self.mark_page('Fichiers');self.heading('EXPLORATEUR  ▣')
+  self.clear();self.mark_page('Fichiers')
+  self.page_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.NEVER)
+  self.content.set_vexpand(True)
+  title=Gtk.Label(label='📁 EXPLORATEUR DE FICHIERS',xalign=0)
+  title.add_css_class('file-name');self.content.append(title)
   toolbar=Gtk.FlowBox();toolbar.set_selection_mode(Gtk.SelectionMode.NONE);toolbar.set_max_children_per_line(4);toolbar.set_row_spacing(5);toolbar.set_column_spacing(6);toolbar.add_css_class('file-toolbar');self.content.append(toolbar)
   self.btn(toolbar,'← Retour',self.go_back)
   self.btn(toolbar,'→ Suivant',self.go_forward)
@@ -586,19 +686,23 @@ class Window(Gtk.ApplicationWindow):
   for label,key in [('Tous','all'),('Dossiers','folders'),('Images','images'),('Documents','documents')]:
    self.btn(filters,label,lambda _b,k=key:self.set_file_filter(k)).add_css_class('file-filter')
   self.count_label=Gtk.Label(xalign=0);self.count_label.add_css_class('file-count');self.content.append(self.count_label)
-  scroll=Gtk.ScrolledWindow(vexpand=True);self.content.append(scroll)
-  self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions());scroll.set_child(self.listbox)
+  scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True);scroll.set_min_content_height(240);self.content.append(scroll)
+  self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions())
+  self.file_grid=Gtk.FlowBox();self.file_grid.set_selection_mode(Gtk.SelectionMode.SINGLE);self.file_grid.set_min_children_per_line(2);self.file_grid.set_max_children_per_line(5);self.file_grid.set_column_spacing(8);self.file_grid.set_row_spacing(8)
+  self.file_grid.connect('child-activated',lambda _box,child:self.open_dir(child.path) if child.path.is_dir() else self.open_file_path(child.path))
+  self.file_grid.connect('selected-children-changed',lambda *_:self.update_file_actions())
+  scroll.set_child(self.file_grid if self.file_view=='grid' else self.listbox)
   actions=Gtk.Box(spacing=6);actions.add_css_class('file-actions');self.content.append(actions);self.file_actions=actions
   for label,cb in [('Ouvrir',self.open_selected),('📋 Copier chemin',self.copy_selected_path),('Copier vers…',lambda *_:self.choose_destination(False)),('Déplacer vers…',lambda *_:self.choose_destination(True)),('Renommer',self.rename),('Corbeille',self.trash),('Supprimer définitivement',self.delete)]:self.btn(actions,label,cb)
   actions.get_last_child().add_css_class('danger-action');actions.set_visible(False)
-  self.info('Sélectionne un élément pour afficher les actions. Double-clique pour ouvrir.  •  Ctrl+F rechercher  •  Alt+← retour  •  Ctrl+R actualiser')
+  
   self.refresh()
  def toggle_file_view(self,*_):
-  self.file_view='grid' if self.file_view=='list' else 'list';self.save_prefs();self.refresh()
+  self.file_view='grid' if self.file_view=='list' else 'list';self.save_prefs();self.files()
  def set_file_filter(self,key):
   self.file_filter=key;self.refresh()
  def update_file_actions(self):
-  if hasattr(self,'file_actions'):self.file_actions.set_visible(bool(self.listbox.get_selected_row()))
+  if hasattr(self,'file_actions'):self.file_actions.set_visible(self.selected() is not None)
  def open_dir(self,p):
   try:
    if not p.is_dir():raise NotADirectoryError(str(p))
@@ -672,6 +776,7 @@ class Window(Gtk.ApplicationWindow):
  def refresh(self):
   if self._active_page!='Fichiers' or not hasattr(self,'listbox'):return
   while child:=self.listbox.get_first_child():self.listbox.remove(child)
+  while child:=self.file_grid.get_first_child():self.file_grid.remove(child)
   try:entries=list(self.cwd.iterdir())
   except OSError as e:self.dialog('Lecture impossible',str(e));return
   q=self.search.get_text().casefold() if hasattr(self,'search') else ''
@@ -706,17 +811,29 @@ class Window(Gtk.ApplicationWindow):
    except OSError:meta='Informations indisponibles'
    details=Gtk.Label(label=meta,xalign=0);details.add_css_class('file-meta');labels.append(details)
    if not compact:line.set_margin_start(24);line.set_margin_end(24)
-   row.set_child(line);row.path=p;self.listbox.append(row)
+   row.set_child(line);row.path=p
+   if self.file_view=='grid':
+    tile=Gtk.FlowBoxChild();tile.path=p
+    panel=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5)
+    panel.set_size_request(125,94)
+    panel.set_margin_top(9);panel.set_margin_bottom(9);panel.set_margin_start(8);panel.set_margin_end(8)
+    symbol=Gtk.Label(label='📁' if is_dir else '📄');symbol.add_css_class('file-symbol');panel.append(symbol)
+    label=Gtk.Label(label=p.name,wrap=True,ellipsize=3,max_width_chars=18,lines=2);panel.append(label)
+    tile.set_child(panel);self.file_grid.append(tile)
+   else:self.listbox.append(row)
+ def open_file_path(self,path):
+  try:Gio.AppInfo.launch_default_for_uri(path.as_uri(),None)
+  except Exception as exc:self.dialog('Ouverture impossible',str(exc))
  def activate_row(self,_list,row):
   if row.path.is_dir():self.open_dir(row.path)
-  else:
-   try:Gio.AppInfo.launch_default_for_uri(row.path.as_uri(),None)
-   except Exception as e:self.dialog('Ouverture impossible',str(e))
+  else:self.open_file_path(row.path)
  def selected(self):
-  row=self.listbox.get_selected_row();return row.path if row else None
+  row=(self.file_grid.get_selected_children()[0] if self.file_grid.get_selected_children() else None) if self.file_view=='grid' else self.listbox.get_selected_row();return row.path if row else None
  def open_selected(self,*_):
-  row=self.listbox.get_selected_row()
-  if row:self.activate_row(self.listbox,row)
+  p=self.selected()
+  if p:
+   if p.is_dir():self.open_dir(p)
+   else:self.open_file_path(p)
  def mkdir(self,*_):self.prompt('Créer un dossier','Nom du dossier','Nouveau dossier',lambda name:self.perform(lambda:(self.cwd/name).mkdir(), 'Dossier créé'))
  def prompt(self,title,description,default,callback):
   d=Gtk.Dialog(title=title,transient_for=self,modal=True);d.add_button('Annuler',Gtk.ResponseType.CANCEL);d.add_button('Valider',Gtk.ResponseType.OK)
@@ -728,12 +845,23 @@ class Window(Gtk.ApplicationWindow):
     else:callback(value)
   d.connect('response',response);d.present()
  def perform(self,func,success):
-  try:
-   func()
+  if getattr(self,'_operation_busy',False):
+   self.dialog('Opération en cours','Attends la fin de la copie ou du déplacement.');return
+  self._operation_busy=True
+  def worker():
+   error=None
+   try:func()
+   except Exception as exc:error=str(exc)
+   GLib.idle_add(self.finish_operation,success,error)
+  threading.Thread(target=worker,daemon=True).start()
+ def finish_operation(self,success,error):
+  self._operation_busy=False
+  if error:self.dialog('Opération impossible',error)
+  else:
    if self._active_page=='Fichiers':self.refresh()
    self.notify('Gestion de stockage',success)
    self.dialog('Terminé',success)
-  except Exception as e:self.dialog('Opération impossible',str(e))
+  return False
  def rename(self,*_):
   p=self.selected()
   if p:self.prompt('Renommer','Nouveau nom',p.name,lambda name:self.perform(lambda:p.rename(p.with_name(name)) if not p.with_name(name).exists() else self.raise_exists(), 'Fichier renommé'))

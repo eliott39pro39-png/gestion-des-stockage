@@ -71,25 +71,26 @@ jobs:
         run: |
           cp -r windows/legacy dist/GestionStockage-Windows/
           cd dist
-          python -m zipfile -c GestionStockage-Windows-27.4.0-preview.zip GestionStockage-Windows
+          python -m zipfile -c GestionStockage-Windows-27.5.0-preview.zip GestionStockage-Windows
       - uses: actions/upload-artifact@v4
         with:
-          name: GestionStockage-Windows-27.4.0-preview
-          path: dist/GestionStockage-Windows-27.4.0-preview.zip
+          name: GestionStockage-Windows-27.5.0-preview
+          path: dist/GestionStockage-Windows-27.5.0-preview.zip
           if-no-files-found: error
 
-      - name: Publish official Windows 27.4.0 archive
+      - name: Attach Windows archive to official 27.5.0 release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: msys2 {0}
         run: |
-          for attempt in $(seq 1 30); do
-            if gh release view v27.4.0 >/dev/null 2>&1; then
-              gh release upload v27.4.0 dist/GestionStockage-Windows-27.4.0-preview.zip --clobber
+          for attempt in $(seq 1 45); do
+            if gh release view v27.5.0 >/dev/null 2>&1; then
+              gh release upload v27.5.0 dist/GestionStockage-Windows-27.5.0-preview.zip --clobber
               exit 0
             fi
+            echo "Waiting for verified Linux release ($attempt/45)"
             sleep 20
           done
-          echo "Linux release was not created; Windows archive remains available in Actions."
+          echo "Linux release not yet ready; Windows archive remains in Actions artifacts."
           exit 1
+
