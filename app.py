@@ -705,8 +705,8 @@ class Window(Gtk.ApplicationWindow):
  def update_file_actions(self):
   if hasattr(self,'file_actions'):self.file_actions.set_visible(self.selected() is not None)
  def assistant_page(self,*_):
-  self.clear();self.mark_page('Assistant');self.heading('ASSISTANT GESTION DE STOCKAGE  🤖')
-  self.info('Salut ! 👋 Que veux-tu faire aujourd’hui ? Choisis une action. Assistant guidé local, sans connexion Internet.')
+  self.clear();self.mark_page('Assistant');self.heading('DISCUTE AVEC TON ASSISTANT  🤖')
+  self.info('Salut !! 👋💙 Écris-moi ce que tu cherches. Je te répondrai comme dans une conversation ! 🤖')
   folder=Gtk.Entry(text=str(HOME),hexpand=True);self.content.append(folder)
   self.info('Dossier dans lequel rechercher (tu peux changer ce chemin) :')
   status=Gtk.Label(label='Choisis une action ci-dessous.',xalign=0,wrap=True);self.content.append(status)
