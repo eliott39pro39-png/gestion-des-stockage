@@ -71,11 +71,11 @@ jobs:
         run: |
           cp -r windows/legacy dist/GestionStockage-Windows/
           cd dist
-          python -m zipfile -c GestionStockage-Windows-27.4.0-preview.zip GestionStockage-Windows
+          python -m zipfile -c GestionStockage-Windows-27.5.0-preview.zip GestionStockage-Windows
       - uses: actions/upload-artifact@v4
         with:
-          name: GestionStockage-Windows-27.4.0-preview
-          path: dist/GestionStockage-Windows-27.4.0-preview.zip
+          name: GestionStockage-Windows-27.5.0-preview
+          path: dist/GestionStockage-Windows-27.5.0-preview.zip
           if-no-files-found: error
 
       # Official release upload is performed only after a reviewed release is created.
