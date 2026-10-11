@@ -64,19 +64,19 @@ jobs:
           name: gestion-stockage-deb-${{ steps.version.outputs.value }}
           path: dist/*.deb
           if-no-files-found: error
-      - name: Publish Linux 27.5.3 beta release
-        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.5.3'
+      - name: Publish Linux 27.5.4 beta release
+        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.5.4'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "v27.5.3" >/dev/null 2>&1; then
-            echo "Release v27.5.3 already exists; keeping published assets unchanged."
+          if gh release view "v27.5.4" >/dev/null 2>&1; then
+            echo "Release v27.5.4 already exists; keeping published assets unchanged."
           else
-            gh release create "v27.5.3" dist/gestion-stockage-27.5.3-all.deb \
-              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.5.3 — Assistant conversationnel" \
-              --notes "Version 27.5.3 : Assistant en interface de chat, réponses avec émojis, résultats affichés dans la conversation et corrections de recherche. Installation depuis le bouton Mises à jour de la version précédente." \
+            gh release create "v27.5.4" dist/gestion-stockage-27.5.4-all.deb \
+              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.5.4 — Assistant conversationnel" \
+              --notes "Version 27.5.4 : historique local des conversations de l’Assistant, restauration après redémarrage et effacement sur confirmation. Mise à jour corrective depuis 27.5.3." \
               --latest
           fi
       - name: Publish release only for explicit version tags
