@@ -729,25 +729,25 @@ class Window(Gtk.ApplicationWindow):
   message_entry=Gtk.Entry(placeholder_text='💬 Ex : Trouve War Thunder',hexpand=True)
   composer.append(message_entry)
   def clear_results():
-   while child:=results.get_first_child():results.remove(child)
+   pass  # Preserve conversation history
   def find(mode):
    clear_results()
    self.prompt('Assistant — rechercher','Nom du fichier ou dossier', '',lambda query:run_search(mode,query))
   def run_search(mode,query):
-   clear_results();status.set_text('Recherche en cours…')
+   speak('🔎 Je cherche « '+query+' »…')
    raw_folder=folder.get_text()
    def worker():
     try:
      found,partial=assistant_tools.search_items(raw_folder,query)
      GLib.idle_add(show_found,mode,found,partial)
-    except Exception as exc:GLib.idle_add(status.set_text,'Recherche impossible : '+str(exc))
+    except Exception as exc:GLib.idle_add(speak,'😕 Recherche impossible : '+str(exc))
    threading.Thread(target=worker,daemon=True).start()
   def show_found(mode,found,partial):
-   status.set_text(f'{len(found)} résultat(s)'+(' — recherche partielle (limite de sécurité)' if partial else ''))
-   if not found:results.append(Gtk.Label(label='Aucun résultat. Essaie un autre nom ou dossier.',xalign=0))
+   speak(f'OUI !! 🎉 J’ai trouvé {len(found)} fichier(s) ou dossier(s) correspondant à ta recherche !'+(' ⚠️ Recherche partielle.' if partial else '')+' 👇')
+   if not found:speak('😕 Aucun résultat. Essaie un autre nom ou dossier !')
    for path in found:
     line=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=7);results.append(line)
-    label=Gtk.Label(label=str(path),xalign=0,wrap=True,hexpand=True);line.append(label)
+    label=Gtk.Label(label=('📁 ' if path.is_dir() else '📄 ')+str(path),xalign=0,wrap=True,hexpand=True);line.append(label)
     if mode=='rename' and path.is_file():
      self.btn(line,'Renommer…',lambda _b,p=path:ask_rename(p))
     elif path.is_dir():
