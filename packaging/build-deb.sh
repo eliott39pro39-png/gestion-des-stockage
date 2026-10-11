@@ -7,8 +7,9 @@ test -f mountain-bg.png || { echo "Missing mountain-bg.png" >&2; exit 1; }
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 pkg="$work/pkg"
-mkdir -p "$pkg/DEBIAN" "$pkg/usr/share/gestion-stockage" "$pkg/usr/bin" "$pkg/usr/share/applications"
+mkdir -p "$pkg/DEBIAN" "$pkg/usr/share/gestion-stockage" "$pkg/usr/bin" "$pkg/usr/share/applications" "$pkg/usr/share/icons/hicolor/scalable/apps"
 cp app.py mountain-bg.png "$pkg/usr/share/gestion-stockage/"
+cp packaging/gestion-stockage.svg "$pkg/usr/share/icons/hicolor/scalable/apps/gestion-stockage.svg"
 if [[ -d versions ]]; then cp -R versions "$pkg/usr/share/gestion-stockage/"; fi
 if [[ -f logo.png ]]; then cp logo.png "$pkg/usr/share/gestion-stockage/"; fi
 cat > "$pkg/DEBIAN/control" <<EOF
@@ -31,6 +32,8 @@ cat > "$pkg/usr/share/applications/gestion-stockage.desktop" <<'EOF'
 Type=Application
 Name=Gestion de stockage
 Exec=gestion-stockage
+Icon=gestion-stockage
+StartupWMClass=io.github.gestionstockage
 Terminal=false
 Categories=Utility;FileTools;
 EOF
