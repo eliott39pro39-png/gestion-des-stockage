@@ -2,7 +2,12 @@ import pathlib
 import re
 import unittest
 
-from packaging.archive_versions import VERSION_PATTERN
+import importlib.util
+
+spec = importlib.util.spec_from_file_location('archive_versions', pathlib.Path(__file__).resolve().parents[1] / 'packaging/archive_versions.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+VERSION_PATTERN = module.VERSION_PATTERN
 
 class ArchiveVersionTests(unittest.TestCase):
     def test_version_detection(self):
