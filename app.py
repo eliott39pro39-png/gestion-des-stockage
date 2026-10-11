@@ -598,18 +598,22 @@ class Window(Gtk.ApplicationWindow):
    self.btn(filters,label,lambda _b,k=key:self.set_file_filter(k)).add_css_class('file-filter')
   self.count_label=Gtk.Label(xalign=0);self.count_label.add_css_class('file-count');self.content.append(self.count_label)
   scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True);scroll.set_min_content_height(240);self.content.append(scroll)
-  self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions());scroll.set_child(self.listbox)
+  self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions())
+  self.file_grid=Gtk.FlowBox();self.file_grid.set_selection_mode(Gtk.SelectionMode.SINGLE);self.file_grid.set_min_children_per_line(2);self.file_grid.set_max_children_per_line(5);self.file_grid.set_column_spacing(8);self.file_grid.set_row_spacing(8)
+  self.file_grid.connect('child-activated',lambda _box,child:self.open_dir(child.path) if child.path.is_dir() else self.open_file_path(child.path))
+  self.file_grid.connect('selected-children-changed',lambda *_:self.update_file_actions())
+  scroll.set_child(self.file_grid if self.file_view=='grid' else self.listbox)
   actions=Gtk.Box(spacing=6);actions.add_css_class('file-actions');self.content.append(actions);self.file_actions=actions
   for label,cb in [('Ouvrir',self.open_selected),('📋 Copier chemin',self.copy_selected_path),('Copier vers…',lambda *_:self.choose_destination(False)),('Déplacer vers…',lambda *_:self.choose_destination(True)),('Renommer',self.rename),('Corbeille',self.trash),('Supprimer définitivement',self.delete)]:self.btn(actions,label,cb)
   actions.get_last_child().add_css_class('danger-action');actions.set_visible(False)
   
   self.refresh()
  def toggle_file_view(self,*_):
-  self.file_view='grid' if self.file_view=='list' else 'list';self.save_prefs();self.refresh()
+  self.file_view='grid' if self.file_view=='list' else 'list';self.save_prefs();self.files()
  def set_file_filter(self,key):
   self.file_filter=key;self.refresh()
  def update_file_actions(self):
-  if hasattr(self,'file_actions'):self.file_actions.set_visible(bool(self.listbox.get_selected_row()))
+  if hasattr(self,'file_actions'):self.file_actions.set_visible(self.selected() is not None)
  def open_dir(self,p):
   try:
    if not p.is_dir():raise NotADirectoryError(str(p))
@@ -683,6 +687,7 @@ class Window(Gtk.ApplicationWindow):
  def refresh(self):
   if self._active_page!='Fichiers' or not hasattr(self,'listbox'):return
   while child:=self.listbox.get_first_child():self.listbox.remove(child)
+  while child:=self.file_grid.get_first_child():self.file_grid.remove(child)
   try:entries=list(self.cwd.iterdir())
   except OSError as e:self.dialog('Lecture impossible',str(e));return
   q=self.search.get_text().casefold() if hasattr(self,'search') else ''
@@ -717,17 +722,29 @@ class Window(Gtk.ApplicationWindow):
    except OSError:meta='Informations indisponibles'
    details=Gtk.Label(label=meta,xalign=0);details.add_css_class('file-meta');labels.append(details)
    if not compact:line.set_margin_start(24);line.set_margin_end(24)
-   row.set_child(line);row.path=p;self.listbox.append(row)
+   row.set_child(line);row.path=p
+   if self.file_view=='grid':
+    tile=Gtk.FlowBoxChild();tile.path=p
+    panel=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5)
+    panel.set_size_request(125,94)
+    panel.set_margin_top(9);panel.set_margin_bottom(9);panel.set_margin_start(8);panel.set_margin_end(8)
+    symbol=Gtk.Label(label='📁' if is_dir else '📄');symbol.add_css_class('file-symbol');panel.append(symbol)
+    label=Gtk.Label(label=p.name,wrap=True,ellipsize=3,max_width_chars=18,lines=2);panel.append(label)
+    tile.set_child(panel);self.file_grid.append(tile)
+   else:self.listbox.append(row)
+ def open_file_path(self,path):
+  try:Gio.AppInfo.launch_default_for_uri(path.as_uri(),None)
+  except Exception as exc:self.dialog('Ouverture impossible',str(exc))
  def activate_row(self,_list,row):
   if row.path.is_dir():self.open_dir(row.path)
-  else:
-   try:Gio.AppInfo.launch_default_for_uri(row.path.as_uri(),None)
-   except Exception as e:self.dialog('Ouverture impossible',str(e))
+  else:self.open_file_path(row.path)
  def selected(self):
-  row=self.listbox.get_selected_row();return row.path if row else None
+  row=(self.file_grid.get_selected_children()[0] if self.file_grid.get_selected_children() else None) if self.file_view=='grid' else self.listbox.get_selected_row();return row.path if row else None
  def open_selected(self,*_):
-  row=self.listbox.get_selected_row()
-  if row:self.activate_row(self.listbox,row)
+  p=self.selected()
+  if p:
+   if p.is_dir():self.open_dir(p)
+   else:self.open_file_path(p)
  def mkdir(self,*_):self.prompt('Créer un dossier','Nom du dossier','Nouveau dossier',lambda name:self.perform(lambda:(self.cwd/name).mkdir(), 'Dossier créé'))
  def prompt(self,title,description,default,callback):
   d=Gtk.Dialog(title=title,transient_for=self,modal=True);d.add_button('Annuler',Gtk.ResponseType.CANCEL);d.add_button('Valider',Gtk.ResponseType.OK)
