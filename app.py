@@ -3,7 +3,7 @@ import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threadin
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.2.1'
+VERSION='27.3.0'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
@@ -85,7 +85,7 @@ class Window(Gtk.ApplicationWindow):
   if self.density not in ('compact','comfortable','spacious'):self.density='comfortable'
   self.nav_style=self.prefs.get('nav_style','icons')
   if self.nav_style not in ('icons','text'):self.nav_style='icons'
-  self.history=[];self.future=[];self._page_serial=0;self._active_page=None
+  self.history=[];self.future=[];self._page_serial=0;self._active_page=None;self._page_animation_id=None
   self.css=Gtk.CssProvider()
   self.restyle()
   Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.css,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -135,23 +135,42 @@ class Window(Gtk.ApplicationWindow):
   if self.is_maximized():self.unmaximize()
   else:self.maximize()
  def clear(self):
+  # Stop any previous transition before removing the old page's widgets.
   self._page_serial+=1
+  if self._page_animation_id is not None:
+   GLib.source_remove(self._page_animation_id)
+   self._page_animation_id=None
   self.content.set_opacity(1.0)
   if hasattr(self,'page_scroll'):
    self.page_scroll.get_vadjustment().set_value(0)
    self.page_scroll.get_hadjustment().set_value(0)
-  while child:=self.content.get_first_child():self.content.remove(child)
-  serial=self._page_serial
-  if self.animations:
-   def fade_step(step=[0]):
-    if serial!=self._page_serial:return False
-    step[0]+=1
-    self.content.set_opacity(1.0)
-    return step[0]<8
-   GLib.timeout_add(20,fade_step)
+  while child:=self.content.get_first_child():
+   self.content.remove(child)
   self._active_page=None
+ def _animate_new_page(self):
+  # Subtle 144 ms ease-out fade. Widgets are already built, so no blank screen
+  # or delayed navigation. Serial cancellation prevents animation races.
+  if not self.animations:return
+  serial=self._page_serial
+  self.content.set_opacity(0.80)
+  frame=[0]
+  def tick():
+   if serial!=self._page_serial:
+    self._page_animation_id=None
+    return False
+   frame[0]+=1
+   progress=min(1.0,frame[0]/9.0)
+   eased=1.0-(1.0-progress)**3
+   self.content.set_opacity(0.80+0.20*eased)
+   if progress>=1.0:
+    self.content.set_opacity(1.0)
+    self._page_animation_id=None
+    return False
+   return True
+  self._page_animation_id=GLib.timeout_add(16,tick)
  def mark_page(self,name):
   self._active_page=name
+  self._animate_new_page()
   for button,_icon,label in self.nav_buttons:
    if label==name:button.add_css_class('active-nav')
    else:button.remove_css_class('active-nav')
@@ -508,10 +527,10 @@ class Window(Gtk.ApplicationWindow):
   else:self.file_sort=mode;self.file_sort_reverse=False
   self.refresh()
  def refresh(self):
-  if not hasattr(self,'listbox'):return
+  if self._active_page!='Fichiers' or not hasattr(self,'listbox'):return
   while child:=self.listbox.get_first_child():self.listbox.remove(child)
   try:entries=list(self.cwd.iterdir())
-  except Exception as e:self.dialog('Lecture impossible',str(e));return
+  except OSError as e:self.dialog('Lecture impossible',str(e));return
   q=self.search.get_text().casefold() if hasattr(self,'search') else ''
   self.entries=[p for p in entries if (self.show_hidden or not p.name.startswith('.')) and q in p.name.casefold()]
   image_ext={'.png','.jpg','.jpeg','.webp','.gif','.bmp','.svg'}
@@ -566,7 +585,11 @@ class Window(Gtk.ApplicationWindow):
     else:callback(value)
   d.connect('response',response);d.present()
  def perform(self,func,success):
-  try:func();self.refresh();self.notify('Gestion de stockage',success);self.dialog('Terminé',success)
+  try:
+   func()
+   if self._active_page=='Fichiers':self.refresh()
+   self.notify('Gestion de stockage',success)
+   self.dialog('Terminé',success)
   except Exception as e:self.dialog('Opération impossible',str(e))
  def rename(self,*_):
   p=self.selected()

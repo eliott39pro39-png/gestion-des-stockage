@@ -2,7 +2,7 @@ name: Build Debian package
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'feature/linux-27.3-fluid']
     tags: ['v*']
     paths:
       - 'app.py'
@@ -31,7 +31,7 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             v="${GITHUB_REF_NAME#v}"
           else
-            v="27.2.1"
+            v="$(grep '^VERSION=' app.py | head -n 1 | cut -d "'" -f 2)"
           fi
           [[ "$v" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           echo "value=$v" >> "$GITHUB_OUTPUT"
@@ -58,17 +58,20 @@ jobs:
           name: gestion-stockage-deb-${{ steps.version.outputs.value }}
           path: dist/*.deb
           if-no-files-found: error
-      - name: Publish tested preview release on main
-        if: github.ref == 'refs/heads/main'
+      - name: Publish Linux 27.3.0 official release
+        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.3.0'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "v27.2.1" >/dev/null 2>&1; then
-            echo "Release v27.2.1 already exists; not overwriting it."
+          if gh release view "v27.3.0" >/dev/null 2>&1; then
+            echo "Release v27.3.0 already exists; keeping published assets unchanged."
           else
-            gh release create "v27.2.1" dist/*.deb --target "${GITHUB_SHA}" --title "Gestion de stockage 27.2.1 (préversion)" --notes "Paquet Debian construit et vérifié automatiquement sur Ubuntu 24.04. La compilation et le contenu sont validés ; le fonctionnement de l'interface graphique doit encore être testé sur un poste Ubuntu avant de considérer cette version comme stable." --prerelease
+            gh release create "v27.3.0" dist/gestion-stockage-27.3.0-all.deb \
+              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.3.0 — Linux" \
+              --notes "Version Linux 27.3.0 : transition discrète entre les pages, annulation des animations lors d'une navigation rapide et correctifs du rafraîchissement de l'explorateur. Le paquet Debian met à niveau le paquet gestion-stockage existant. Compilation et structure du paquet validées automatiquement ; interface graphique à tester sur Ubuntu." \
+              --latest
           fi
       - name: Publish release only for explicit version tags
         if: github.ref_type == 'tag'
