@@ -1,6 +1,8 @@
 name: Build Windows preview
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     paths:
@@ -10,7 +12,7 @@ on:
       - 'versions/**'
       - '.github/workflows/build-windows.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   windows:
     runs-on: windows-latest
@@ -35,6 +37,16 @@ jobs:
         run: |
           python -m py_compile app.py windows/app_windows.py
           find versions -name app.py -exec python -m py_compile {} +
+      - name: Verify storage detective and Windows update adapter
+        run: |
+          python - <<'PY'
+          import ast
+          source = ast.parse(open('app.py', encoding='utf-8').read())
+          adapter = ast.parse(open('windows/app_windows.py', encoding='utf-8').read())
+          assert any(isinstance(node, ast.FunctionDef) and node.name == 'storage_detective' for node in ast.walk(source))
+          assert any(isinstance(node, ast.FunctionDef) and node.name == 'win_updates_page' for node in ast.walk(adapter))
+          print('Storage detective and Windows updater syntax OK')
+          PY
       - name: Create Windows-named legacy versions
         run: |
           mkdir -p windows/legacy
@@ -59,9 +71,25 @@ jobs:
         run: |
           cp -r windows/legacy dist/GestionStockage-Windows/
           cd dist
-          python -m zipfile -c GestionStockage-Windows-27.2.1-preview.zip GestionStockage-Windows
+          python -m zipfile -c GestionStockage-Windows-27.4.0-preview.zip GestionStockage-Windows
       - uses: actions/upload-artifact@v4
         with:
-          name: GestionStockage-Windows-27.2.1-preview
-          path: dist/GestionStockage-Windows-27.2.1-preview.zip
+          name: GestionStockage-Windows-27.4.0-preview
+          path: dist/GestionStockage-Windows-27.4.0-preview.zip
           if-no-files-found: error
+
+      - name: Publish official Windows 27.4.0 archive
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: msys2 {0}
+        run: |
+          for attempt in $(seq 1 30); do
+            if gh release view v27.4.0 >/dev/null 2>&1; then
+              gh release upload v27.4.0 dist/GestionStockage-Windows-27.4.0-preview.zip --clobber
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Linux release was not created; Windows archive remains available in Actions."
+          exit 1

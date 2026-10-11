@@ -58,19 +58,19 @@ jobs:
           name: gestion-stockage-deb-${{ steps.version.outputs.value }}
           path: dist/*.deb
           if-no-files-found: error
-      - name: Publish Linux 27.3.0 official release
-        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.3.0'
+      - name: Publish Linux 27.4.0 official release
+        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.4.0'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "v27.3.0" >/dev/null 2>&1; then
-            echo "Release v27.3.0 already exists; keeping published assets unchanged."
+          if gh release view "v27.4.0" >/dev/null 2>&1; then
+            echo "Release v27.4.0 already exists; keeping published assets unchanged."
           else
-            gh release create "v27.3.0" dist/gestion-stockage-27.3.0-all.deb \
-              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.3.0 — Linux" \
-              --notes "Version Linux 27.3.0 : transition discrète entre les pages, annulation des animations lors d'une navigation rapide et correctifs du rafraîchissement de l'explorateur. Le paquet Debian met à niveau le paquet gestion-stockage existant. Compilation et structure du paquet validées automatiquement ; interface graphique à tester sur Ubuntu." \
+            gh release create "v27.4.0" dist/gestion-stockage-27.4.0-all.deb \
+              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.4.0 — Linux" \
+              --notes "Version Linux 27.4.0 : transitions GTK4 fondues, recherche de mises à jour officielles, Détective de stockage en lecture seule. Le paquet Debian met à niveau le paquet gestion-stockage existant. Compilation et structure du paquet validées automatiquement ; interface graphique à tester sur Ubuntu." \
               --latest
           fi
       - name: Publish release only for explicit version tags
