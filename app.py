@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse
+import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.3.0'
+VERSION='27.4.0'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
@@ -62,7 +62,7 @@ PALETTES = {
  'blue':'#287df0', 'purple':'#8059e8', 'green':'#168a70', 'cyan':'#078aaf', 'neon':'#00aaff'
 }
 
-RELEASES = [('27.2', ['Page Favoris dédiée', 'Copie du chemin du dossier courant', 'Accès au dossier parent', 'Raccourci F5 pour actualiser', 'Ctrl+4 pour les Favoris', 'Ctrl+5 pour les Paramètres', 'Ctrl+6 pour les Raccourcis']), ('27.1', ['Copier le chemin complet du fichier sélectionné', 'Retirer un dossier des favoris', 'Nouvel onglet Raccourcis clavier']), ('27.0.3', ['Fenêtre adaptative avec défilement de secours', 'Bannières panoramiques sur les autres pages', 'Boutons et réglages réorganisés']), ('27.0.2', ['Fond panoramique montagneux sur l’accueil', 'Barres d’outils adaptatives et correction de largeur minimale', 'Nouvelle présentation inspirée de la maquette']), ('27.0.1', ['Interface inspirée du tableau de bord néon', 'Correction du défilement et des contraintes de largeur', 'Accueil avec cartes de stockage et accès rapides']), ('27.0', ['Nouvel onglet Téléchargements et historique détaillé des mises à jour', 'Nouvelle identité visuelle et icône', 'Navigation fluide, accès rapides et raccourcis supplémentaires']), ('26.9', ['Retour à la base stable 26.7 sans graphiques', 'Versions bêta et bugguées séparées', 'Fluid Edition : transitions légères et personnalisation']), ('26.8.6', ['Tentative de calcul progressif des graphiques — édition bugguée']), ('26.8.5', ['Catégorie Versions bugguées et avertissement avant lancement']), ('26.8.4', ['Correctifs d’affichage et export CSV — édition bugguée']), ('26.8.3', ['Graphiques circulaires et barres — édition bugguée']), ('26.8.2', ['Correctifs de fenêtre et ouverture de dossiers — édition bugguée']), ('26.8', ['Graphiques de stockage redessinés — édition bugguée']), ('26.7', ['Explorateur simplifié, filtres, actions contextuelles']), ('26.6', ['Tri des fichiers, compteur et icônes']), ('26.5.1', ['Nettoyage prévisualisé et corrections de couleurs']), ('26.5', ['Archives des anciennes versions et améliorations']), ('26.4', ['Thèmes, densité et styles du menu']), ('26.3', ['Personnalisation et interface améliorée']), ('26.2', ['Gestion du stockage et de la navigation']), ('2.1', ['Améliorations de l’explorateur']), ('2.0', ['Nouvelle interface']), ('1.0', ['Première édition'])]
+RELEASES = [('27.4.0', ['Recherche des mises à jour officielles sur GitHub', 'Téléchargement et installation guidée', 'Transitions fondues entre pages GTK4']), ('27.3.0', ['Transitions légères entre les pages']), ('27.2', ['Page Favoris dédiée', 'Copie du chemin du dossier courant', 'Accès au dossier parent', 'Raccourci F5 pour actualiser', 'Ctrl+4 pour les Favoris', 'Ctrl+5 pour les Paramètres', 'Ctrl+6 pour les Raccourcis']), ('27.1', ['Copier le chemin complet du fichier sélectionné', 'Retirer un dossier des favoris', 'Nouvel onglet Raccourcis clavier']), ('27.0.3', ['Fenêtre adaptative avec défilement de secours', 'Bannières panoramiques sur les autres pages', 'Boutons et réglages réorganisés']), ('27.0.2', ['Fond panoramique montagneux sur l’accueil', 'Barres d’outils adaptatives et correction de largeur minimale', 'Nouvelle présentation inspirée de la maquette']), ('27.0.1', ['Interface inspirée du tableau de bord néon', 'Correction du défilement et des contraintes de largeur', 'Accueil avec cartes de stockage et accès rapides']), ('27.0', ['Nouvel onglet Téléchargements et historique détaillé des mises à jour', 'Nouvelle identité visuelle et icône', 'Navigation fluide, accès rapides et raccourcis supplémentaires']), ('26.9', ['Retour à la base stable 26.7 sans graphiques', 'Versions bêta et bugguées séparées', 'Fluid Edition : transitions légères et personnalisation']), ('26.8.6', ['Tentative de calcul progressif des graphiques — édition bugguée']), ('26.8.5', ['Catégorie Versions bugguées et avertissement avant lancement']), ('26.8.4', ['Correctifs d’affichage et export CSV — édition bugguée']), ('26.8.3', ['Graphiques circulaires et barres — édition bugguée']), ('26.8.2', ['Correctifs de fenêtre et ouverture de dossiers — édition bugguée']), ('26.8', ['Graphiques de stockage redessinés — édition bugguée']), ('26.7', ['Explorateur simplifié, filtres, actions contextuelles']), ('26.6', ['Tri des fichiers, compteur et icônes']), ('26.5.1', ['Nettoyage prévisualisé et corrections de couleurs']), ('26.5', ['Archives des anciennes versions et améliorations']), ('26.4', ['Thèmes, densité et styles du menu']), ('26.3', ['Personnalisation et interface améliorée']), ('26.2', ['Gestion du stockage et de la navigation']), ('2.1', ['Améliorations de l’explorateur']), ('2.0', ['Nouvelle interface']), ('1.0', ['Première édition'])]
 
 class Window(Gtk.ApplicationWindow):
  def __init__(self,app):
@@ -85,7 +85,7 @@ class Window(Gtk.ApplicationWindow):
   if self.density not in ('compact','comfortable','spacious'):self.density='comfortable'
   self.nav_style=self.prefs.get('nav_style','icons')
   if self.nav_style not in ('icons','text'):self.nav_style='icons'
-  self.history=[];self.future=[];self._page_serial=0;self._active_page=None;self._page_animation_id=None
+  self.history=[];self.future=[];self._page_serial=0;self._active_page=None;self._page_animation_id=None;self._update_busy=False;self._update_release=None
   self.css=Gtk.CssProvider()
   self.restyle()
   Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.css,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -94,7 +94,7 @@ class Window(Gtk.ApplicationWindow):
   sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);sidebar.set_size_request(155,-1); sidebar.set_margin_top(20); sidebar.set_margin_start(12); sidebar.set_margin_end(12); sidebar.add_css_class('sidebar'); side_scroll=Gtk.ScrolledWindow();side_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);side_scroll.set_min_content_width(178);side_scroll.set_child(sidebar);root.append(side_scroll)
   title=Gtk.Label(label='▣  NEON STORAGE',xalign=0); title.add_css_class('brand'); sidebar.append(title)
   self.nav_buttons=[]
-  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
+  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
    b=Gtk.Button();b.set_halign(Gtk.Align.FILL)
    b.connect('clicked',lambda _b,f=callback:f());sidebar.append(b)
    b.set_tooltip_text('Aller vers '+name);self.nav_buttons.append((b,icon,name))
@@ -107,7 +107,8 @@ class Window(Gtk.ApplicationWindow):
   self.btn(topbar,'□',self.toggle_maximize).set_tooltip_text('Agrandir ou restaurer la fenêtre')
   self.btn(topbar,'⛶',self.toggle_fullscreen).set_tooltip_text('Plein écran (F11)')
   version_badge=Gtk.Label(label='v'+VERSION);version_badge.add_css_class('version-badge');topbar.append(version_badge)
-  self.content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=10); self.content.set_margin_top(18); self.content.set_margin_bottom(18); self.content.set_margin_start(20); self.content.set_margin_end(20); self.content.set_hexpand(True); self.content.add_css_class('content-area'); self.page_scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True);self.page_scroll.set_policy(Gtk.PolicyType.AUTOMATIC,Gtk.PolicyType.AUTOMATIC);self.page_scroll.set_child(self.content);self.main_panel.append(self.page_scroll)
+  self.page_stack=Gtk.Stack(vexpand=True,hexpand=True);self.page_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE);self.page_stack.set_transition_duration(360);self.main_panel.append(self.page_stack)
+  self.content=None;self.page_scroll=None
   key=Gtk.EventControllerKey();key.connect('key-pressed',self.on_key_pressed);self.add_controller(key)
   self.home()
  def on_key_pressed(self,_controller,keyval,_keycode,state):
@@ -135,39 +136,35 @@ class Window(Gtk.ApplicationWindow):
   if self.is_maximized():self.unmaximize()
   else:self.maximize()
  def clear(self):
-  # Stop any previous transition before removing the old page's widgets.
+  # Create the next page without destroying the visible one: Gtk.Stack
+  # crossfades two complete pages instead of fading newly inserted widgets.
   self._page_serial+=1
-  if self._page_animation_id is not None:
-   GLib.source_remove(self._page_animation_id)
-   self._page_animation_id=None
-  self.content.set_opacity(1.0)
-  if hasattr(self,'page_scroll'):
-   self.page_scroll.get_vadjustment().set_value(0)
-   self.page_scroll.get_hadjustment().set_value(0)
-  while child:=self.content.get_first_child():
-   self.content.remove(child)
+  old=self.page_stack.get_visible_child()
+  content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=10)
+  for edge in ('top','bottom'):getattr(content,'set_margin_'+edge)(18)
+  for edge in ('start','end'):getattr(content,'set_margin_'+edge)(20)
+  content.set_hexpand(True);content.add_css_class('content-area')
+  scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True)
+  scroll.set_policy(Gtk.PolicyType.AUTOMATIC,Gtk.PolicyType.AUTOMATIC)
+  scroll.set_child(content)
+  self.page_stack.add_child(scroll)
+  self.content=content;self.page_scroll=scroll;self._pending_old_page=old
   self._active_page=None
  def _animate_new_page(self):
-  # Subtle 144 ms ease-out fade. Widgets are already built, so no blank screen
-  # or delayed navigation. Serial cancellation prevents animation races.
-  if not self.animations:return
-  serial=self._page_serial
-  self.content.set_opacity(0.80)
-  frame=[0]
-  def tick():
-   if serial!=self._page_serial:
-    self._page_animation_id=None
+  old=getattr(self,'_pending_old_page',None)
+  new=self.page_scroll
+  self.page_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE if self.animations else Gtk.StackTransitionType.NONE)
+  self.page_stack.set_transition_duration(360 if self.animations else 0)
+  self.page_stack.set_visible_child(new)
+  self._pending_old_page=None
+  # A delayed cleanup lets GTK finish the actual crossfade. Rapid navigation
+  # is safe: all obsolete children except the current page are removed later.
+  if old is not None:
+   def cleanup():
+    if old.get_parent() is self.page_stack and old is not self.page_stack.get_visible_child():
+     self.page_stack.remove(old)
     return False
-   frame[0]+=1
-   progress=min(1.0,frame[0]/9.0)
-   eased=1.0-(1.0-progress)**3
-   self.content.set_opacity(0.80+0.20*eased)
-   if progress>=1.0:
-    self.content.set_opacity(1.0)
-    self._page_animation_id=None
-    return False
-   return True
-  self._page_animation_id=GLib.timeout_add(16,tick)
+   GLib.timeout_add(440 if self.animations else 1,cleanup)
  def mark_page(self,name):
   self._active_page=name
   self._animate_new_page()
@@ -245,7 +242,8 @@ class Window(Gtk.ApplicationWindow):
  def settings_page(self,*_):
   self.clear();self.mark_page('Paramètres');self.heading('PARAMÈTRES  ⚙')
   self.info('Personnalise ton application. Les changements sont enregistrés automatiquement.')
-  self.info('NOUVEAU 27.0 — Fluid Final : onglet Téléchargements, notes des versions et nouveaux raccourcis.')
+  self.info('NOUVEAU 27.4 — vraies transitions fondues entre les pages et mises à jour GitHub.')
+  self.btn(self.content,'⬆ Vérifier les mises à jour',self.updates_page)
   self.info('1. Fond de l’application')
   bgrow=Gtk.FlowBox();bgrow.set_selection_mode(Gtk.SelectionMode.NONE);bgrow.set_max_children_per_line(3);bgrow.set_row_spacing(5);bgrow.set_column_spacing(6);self.content.append(bgrow)
   for label,val in [('✦ Aurore néon','aurora'),('Uni','solid'),('Nuit profonde','midnight')]:
@@ -280,7 +278,89 @@ class Window(Gtk.ApplicationWindow):
   self.btn(self.content,'Enregistrer le dossier de démarrage',lambda *_:self.set_start_dir(start.get_text()))
   self.info('Les suppressions demandent toujours une confirmation. Cette protection ne peut pas être désactivée.')
   self.btn(self.content,'📋 À propos et nouveautés',self.about_page)
-  self.btn(self.content,'Réinitialiser les préférences',lambda *_:self.dialog('Réinitialiser les paramètres ?', 'Tes fichiers personnels ne seront pas touchés.',self.reset_prefs))
+  self.btn(self.content,'Réinitialiser les préférences',lambda *_:self.dialog('Réinitialiser les paramètres ?', 'Tes fichiers personnels ne seront pas touchés.',self.reset_prefs)) def updates_page(self,*_):
+  self.clear();self.mark_page('Mises à jour');self.heading('MISES À JOUR  ⬆')
+  self.info('Version installée : '+VERSION)
+  self.info('Vérification des versions officielles publiées sur GitHub. Aucun téléchargement automatique sans ton accord.')
+  self.update_status=Gtk.Label(label='Clique sur Vérifier pour rechercher une nouvelle version.',xalign=0,wrap=True)
+  self.content.append(self.update_status)
+  self.update_button=self.btn(self.content,'🔎 Vérifier les mises à jour',self.check_updates)
+  self.install_button=self.btn(self.content,'⬇ Télécharger et installer la mise à jour',self.download_update)
+  self.install_button.set_sensitive(False)
+  self.btn(self.content,'🌐 Voir les versions sur GitHub',lambda *_:Gio.AppInfo.launch_default_for_uri('https://github.com/eliott39pro39-png/gestion-des-stockage/releases',None))
+ def _update_message(self,message,release=None):
+  self._update_busy=False
+  if release is not None:self._update_release=release
+  if self._active_page=='Mises à jour':
+   self.update_status.set_text(message)
+   self.update_button.set_sensitive(True)
+   self.install_button.set_sensitive(bool(self._update_release))
+  return False
+ def check_updates(self,*_):
+  if self._update_busy:return
+  self._update_busy=True;self._update_release=None
+  self.update_status.set_text('Recherche de la dernière version officielle…')
+  self.update_button.set_sensitive(False);self.install_button.set_sensitive(False)
+  def worker():
+   try:
+    req=urllib.request.Request('https://api.github.com/repos/eliott39pro39-png/gestion-des-stockage/releases/latest',headers={'User-Agent':'GestionStockage/'+VERSION,'Accept':'application/vnd.github+json'})
+    with urllib.request.urlopen(req,timeout=12) as response:release=json.load(response)
+    tag=release.get('tag_name','').lstrip('v')
+    if not re.fullmatch(r'\\d+\\.\\d+(?:\\.\\d+)?',tag):raise ValueError('Version distante invalide.')
+    def parts(v):return tuple(int(x) for x in v.split('.'))+(0,)*(3-len(v.split('.')))
+    if parts(tag)<=parts(VERSION):
+     GLib.idle_add(self._update_message,'Tu as déjà la dernière version officielle ('+VERSION+').');return
+    filename='gestion-stockage-'+tag+'-all.deb'
+    asset=next((a for a in release.get('assets',[]) if a.get('name')==filename),None)
+    if not asset:raise ValueError('La nouvelle version ne contient pas de paquet Ubuntu .deb.')
+    url=asset.get('browser_download_url','')
+    if not url.startswith('https://github.com/eliott39pro39-png/gestion-des-stockage/releases/download/'):raise ValueError('Adresse du paquet inattendue.')
+    GLib.idle_add(self._update_message,'Nouvelle version '+tag+' disponible ! Clique sur Télécharger et installer.',{'version':tag,'url':url,'filename':filename})
+   except Exception as exc:GLib.idle_add(self._update_message,'Vérification impossible : '+str(exc))
+  threading.Thread(target=worker,daemon=True).start()
+ def download_update(self,*_):
+  release=self._update_release
+  if not release or self._update_busy:return
+  self.dialog('Installer Gestion de stockage '+release['version']+' ?', 'Le paquet officiel sera téléchargé dans Téléchargements. Un terminal demandera ton mot de passe Ubuntu pour la mise à niveau.',lambda:self._start_update_download(release))
+ def _start_update_download(self,release):
+  if self._update_busy:return
+  self._update_busy=True
+  self.update_status.set_text('Téléchargement en cours…');self.update_button.set_sensitive(False);self.install_button.set_sensitive(False)
+  def worker():
+   try:
+    target=HOME/'Téléchargements'
+    if not target.is_dir():target=HOME/'Downloads'
+    target.mkdir(parents=True,exist_ok=True)
+    path=target/release['filename']
+    temp=path.with_suffix('.deb.part')
+    try:
+     req=urllib.request.Request(release['url'],headers={'User-Agent':'GestionStockage/'+VERSION})
+     with urllib.request.urlopen(req,timeout=45) as source,open(temp,'wb') as dest:
+      shutil.copyfileobj(source,dest)
+     if temp.stat().st_size<1024:raise ValueError('Téléchargement incomplet.')
+     info=subprocess.run(['dpkg-deb','-f',str(temp),'Package','Version'],capture_output=True,text=True,timeout=10,check=True)
+     fields=info.stdout.splitlines()
+     if fields!=['gestion-stockage',release['version']]:raise ValueError('Le paquet téléchargé ne correspond pas à la version attendue.')
+     temp.replace(path)
+    finally:
+     if temp.exists():temp.unlink()
+    GLib.idle_add(self._launch_update_terminal,path)
+   except Exception as exc:GLib.idle_add(self._update_message,'Téléchargement impossible : '+str(exc),release)
+  threading.Thread(target=worker,daemon=True).start()
+ def _launch_update_terminal(self,path):
+  # sudo runs inside a visible terminal; the user remains in control.
+  command='sudo apt install -- '+shlex.quote(str(path))+'; echo; read -p "Appuie sur Entrée pour fermer…"'
+  terminal=shutil.which('x-terminal-emulator') or shutil.which('gnome-terminal')
+  if terminal:
+   try:
+    if pathlib.Path(terminal).name=='gnome-terminal':subprocess.Popen([terminal,'--','bash','-c',command])
+    else:subprocess.Popen([terminal,'-e','bash','-c',command])
+    self._update_message('Paquet téléchargé : '+str(path)+' — suis les instructions du terminal pour terminer la mise à jour.',self._update_release)
+    return False
+   except OSError:pass
+  self._update_message('Paquet téléchargé : '+str(path)+' — ouvre un terminal et lance : sudo apt install -- '+shlex.quote(str(path)),self._update_release)
+  return False
+
  def downloads_dir(self):
   for name in ('Téléchargements','Downloads'):
    folder=HOME/name
@@ -337,6 +417,7 @@ class Window(Gtk.ApplicationWindow):
   except OSError as exc:self.dialog('Impossible de lancer la version',str(exc))
  def about_page(self,*_):
   self.clear();self.heading('GESTION DE STOCKAGE — '+VERSION)
+  self.info('27.4 — Transitions GTK4 croisées et téléchargement guidé des mises à jour officielles.')
   self.info('27.0 — Navigation fluide : fondu doux, survol et sélection des menus, raccourcis clavier, boutons de fenêtre.')
   self.info('26.9 — Retour à la base 26.7. Graphiques supprimés. Archives séparées en bêta et versions bugguées.')
   self.info('Nouveautés 26.7 — Explorateur apaisé')
