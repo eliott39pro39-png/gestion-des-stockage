@@ -38,7 +38,18 @@ La version Windows est encore **expérimentale** : elle est compilée automatiqu
 2. Ouvrez la **dernière exécution réussie** de « Build Windows preview » (coche verte).
 3. En bas de la page, dans **Artifacts**, téléchargez **GestionStockage-Windows-…-preview**. GitHub peut demander une connexion pour télécharger les artifacts.
 4. Décompressez l'archive ZIP, puis ouvrez le dossier **GestionStockage-Windows** et lancez **GestionStockage-Windows.exe**.
-5. Gardez **tout le dossier extrait** : l'exécutable utilise les fichiers situés à côté de lui. Si Windows SmartScreen affiche un avertissement, n'exécutez le programme que si vous avez vérifié sa provenance et lui faites confiance.
+5. Gardez **tout le dossier extrait** : l'exécutable utilise les fichiers situés à côté de lui.
+
+#### 🛡️ Windows affiche « Windows a protégé votre ordinateur » ?
+
+Cette fenêtre peut provenir de **Microsoft Defender SmartScreen** : la préversion est récente et n'a pas encore de réputation établie auprès de Windows. **Cet avertissement ne signifie pas à lui seul qu'un virus a été détecté.**
+
+1. Vérifiez que l'archive provient bien de **ce dépôt GitHub officiel** et que vous avez téléchargé la bonne version.
+2. Faites analyser le fichier par **Microsoft Defender Antivirus** et vérifiez qu'aucune menace n'a été signalée.
+3. **Uniquement si l'avertissement est celui de SmartScreen** (« application non reconnue »), et si vous faites confiance au fichier, cliquez sur **« Informations complémentaires »**, puis sur **« Exécuter quand même »** si cette option est proposée.
+4. Si Defender détecte une menace, met le fichier en quarantaine, ou si le bouton n'apparaît pas, **n'essayez pas de contourner la protection** : signalez le problème dans les [Issues](https://github.com/eliott39pro39-png/gestion-des-stockage/issues) avec le texte exact de l'alerte.
+
+**Ne désactivez pas SmartScreen ni l'antivirus pour lancer le logiciel.** Cette procédure ne garantit pas que la préversion fonctionnera sur tous les PC Windows.
 
 **Ne téléchargez pas « Source code (zip) » pour installer Windows.** Il ne contient pas d'installateur Windows prêt à l'emploi.
 
