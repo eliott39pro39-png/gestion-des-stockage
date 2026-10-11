@@ -5,7 +5,7 @@ import assistant_tools
 import assistant_history
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.5.3'
+VERSION='27.5.4'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
