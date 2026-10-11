@@ -289,6 +289,8 @@ class Window(Gtk.ApplicationWindow):
    try:Gio.AppInfo.launch_default_for_uri(path.as_uri(),None)
    except Exception as exc:self.dialog('Ouverture impossible',str(exc))
  def versions_page(self,*_):
+  if os.environ.get('GESTION_STOCKAGE_ARCHIVE_CHILD')=='1':
+   self.dialog('Navigation désactivée','Les anciennes versions ne peuvent pas ouvrir d’autres anciennes versions.');return
   self.clear();self.mark_page('Anciennes versions');self.heading('ANCIENNES VERSIONS  ◷')
   self.info('Les versions bêta et les versions bugguées sont séparées. Les notes de chaque mise à jour figurent ici et dans Téléchargements.')
   archive=pathlib.Path(__file__).resolve().parent/'versions'
@@ -308,6 +310,7 @@ class Window(Gtk.ApplicationWindow):
     row.append(Gtk.Label(label='Version '+version+' — bugguée • '+dict(RELEASES).get(version,['Problèmes connus'])[0],hexpand=True,xalign=0,wrap=True))
     self.btn(row,'Ouvrir ⚠',lambda _b,p=script,v=version:self.dialog('Version bugguée','Cette version a eu des problèmes connus. Les graphiques ont été retirés de cette copie. Ouvrir quand même ?',lambda:self.launch_beta(p,v)))
  def launch_beta(self,script,version):
+  if os.environ.get('GESTION_STOCKAGE_ARCHIVE_CHILD')=='1':return
   try:
    subprocess.Popen([sys.executable,str(script)],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
    self.notify('Version bêta lancée','Gestion de stockage '+version)
