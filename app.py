@@ -3,7 +3,7 @@ import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threadin
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.4.0'
+VERSION='27.5.0'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
@@ -363,6 +363,9 @@ class Window(Gtk.ApplicationWindow):
   return False
 
  def downloads_dir(self):
+  if sys.platform=='win32':
+   folder=HOME/'Downloads'
+   if folder.is_dir():return folder
   for name in ('Téléchargements','Downloads'):
    folder=HOME/name
    if folder.is_dir():return folder
@@ -842,12 +845,23 @@ class Window(Gtk.ApplicationWindow):
     else:callback(value)
   d.connect('response',response);d.present()
  def perform(self,func,success):
-  try:
-   func()
+  if getattr(self,'_operation_busy',False):
+   self.dialog('Opération en cours','Attends la fin de la copie ou du déplacement.');return
+  self._operation_busy=True
+  def worker():
+   error=None
+   try:func()
+   except Exception as exc:error=str(exc)
+   GLib.idle_add(self.finish_operation,success,error)
+  threading.Thread(target=worker,daemon=True).start()
+ def finish_operation(self,success,error):
+  self._operation_busy=False
+  if error:self.dialog('Opération impossible',error)
+  else:
    if self._active_page=='Fichiers':self.refresh()
    self.notify('Gestion de stockage',success)
    self.dialog('Terminé',success)
-  except Exception as e:self.dialog('Opération impossible',str(e))
+  return False
  def rename(self,*_):
   p=self.selected()
   if p:self.prompt('Renommer','Nouveau nom',p.name,lambda name:self.perform(lambda:p.rename(p.with_name(name)) if not p.with_name(name).exists() else self.raise_exists(), 'Fichier renommé'))
