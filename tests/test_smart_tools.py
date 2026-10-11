@@ -33,3 +33,21 @@ with tempfile.TemporaryDirectory() as temp:
     except ValueError:
         pass
 print("Safe storage tools tests passed")
+
+# Undo must restore only safe files and preserve any new file at the original path.
+with tempfile.TemporaryDirectory() as temp:
+    root = pathlib.Path(temp)
+    incoming = root / "incoming"
+    incoming.mkdir()
+    (incoming / "picture.png").write_bytes(b"original")
+    plan = smart_tools.plan_organization(incoming)
+    moved = smart_tools.apply_organization(plan)
+    assert len(moved) == 1
+    (incoming / "picture.png").write_bytes(b"new")
+    restored, skipped = smart_tools.undo_organization(moved)
+    assert not restored and len(skipped) == 1
+    assert (incoming / "picture.png").read_bytes() == b"new"
+    (incoming / "picture.png").unlink()
+    restored, skipped = smart_tools.undo_organization(moved)
+    assert len(restored) == 1 and not skipped
+    assert (incoming / "picture.png").read_bytes() == b"original"
