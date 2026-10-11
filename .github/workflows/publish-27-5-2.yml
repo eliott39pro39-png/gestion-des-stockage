@@ -1,0 +1,40 @@
+name: Publish 27.5.2 as update
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-27-5-2.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release and package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          grep -q "^VERSION='27.5.2'$" app.py
+          gh release view v27.5.2 --repo "$GITHUB_REPOSITORY"
+          gh release download v27.5.2 --repo "$GITHUB_REPOSITORY" --pattern 'gestion-stockage-27.5.2-all.deb' --dir /tmp/gs-release
+          test -s /tmp/gs-release/gestion-stockage-27.5.2-all.deb
+          test "$(dpkg-deb -f /tmp/gs-release/gestion-stockage-27.5.2-all.deb Version)" = "27.5.2"
+          dpkg-deb --contents /tmp/gs-release/gestion-stockage-27.5.2-all.deb | grep -q 'assistant_tools.py'
+      - name: Make 27.5.2 visible to built-in updater
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release edit v27.5.2 --repo "$GITHUB_REPOSITORY" --prerelease=false --latest
+      - name: Attach existing Windows test build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gs-win
+          gh run download 38162447702 --repo "$GITHUB_REPOSITORY" --name GestionStockage-Windows-27.5.2-preview --dir /tmp/gs-win
+          test -s /tmp/gs-win/GestionStockage-Windows-27.5.2-preview.zip
+          gh release upload v27.5.2 /tmp/gs-win/GestionStockage-Windows-27.5.2-preview.zip --repo "$GITHUB_REPOSITORY" --clobber
