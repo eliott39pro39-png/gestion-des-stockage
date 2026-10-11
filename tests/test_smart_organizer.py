@@ -29,5 +29,14 @@ class OrganizerTests(unittest.TestCase):
             (root / 'photo.jpg').write_text('original')
             self.assertEqual(smart_organizer.plan(root), [])
 
+    def test_symlink_category_is_skipped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outside = root / 'outside'
+            outside.mkdir()
+            (root / 'Images').symlink_to(outside, target_is_directory=True)
+            (root / 'photo.jpg').write_text('original')
+            self.assertEqual(smart_organizer.plan(root), [])
+
 if __name__ == '__main__':
     unittest.main()
