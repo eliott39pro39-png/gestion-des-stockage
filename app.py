@@ -278,7 +278,8 @@ class Window(Gtk.ApplicationWindow):
   self.btn(self.content,'Enregistrer le dossier de démarrage',lambda *_:self.set_start_dir(start.get_text()))
   self.info('Les suppressions demandent toujours une confirmation. Cette protection ne peut pas être désactivée.')
   self.btn(self.content,'📋 À propos et nouveautés',self.about_page)
-  self.btn(self.content,'Réinitialiser les préférences',lambda *_:self.dialog('Réinitialiser les paramètres ?', 'Tes fichiers personnels ne seront pas touchés.',self.reset_prefs)) def updates_page(self,*_):
+  self.btn(self.content,'Réinitialiser les préférences',lambda *_:self.dialog('Réinitialiser les paramètres ?', 'Tes fichiers personnels ne seront pas touchés.',self.reset_prefs))
+ def updates_page(self,*_):
   self.clear();self.mark_page('Mises à jour');self.heading('MISES À JOUR  ⬆')
   self.info('Version installée : '+VERSION)
   self.info('Vérification des versions officielles publiées sur GitHub. Aucun téléchargement automatique sans ton accord.')
