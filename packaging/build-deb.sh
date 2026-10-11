@@ -4,6 +4,7 @@ VERSION="${1:?Usage: bash packaging/build-deb.sh VERSION}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "Invalid version" >&2; exit 1; }
 test -f app.py || { echo "Missing app.py: publish the verified application sources first" >&2; exit 1; }
 test -f mountain-bg.png || { echo "Missing mountain-bg.png" >&2; exit 1; }
+python3 packaging/archive_versions.py
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 pkg="$work/pkg"
