@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'app.py'
+      - 'assistant_tools.py'
       - 'tests/**'
       - '.github/workflows/validate-27-5.yml'
   workflow_dispatch:
@@ -15,7 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Syntax check for all Python files
-        run: python3 -m compileall -q app.py windows versions tests
+        run: python3 -m compileall -q app.py assistant_tools.py windows versions tests
+      - name: Assistant safety regression tests
+        run: PYTHONPATH=. python3 tests/test_assistant_tools.py
       - name: GTK4 headless startup smoke test
         run: |
           sudo apt-get update -qq

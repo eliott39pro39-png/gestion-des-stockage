@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex, hashlib
 from gi.repository import Gtk, Gio, GLib, Gdk
+import assistant_tools
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
 VERSION='27.5.1'
@@ -94,7 +95,7 @@ class Window(Gtk.ApplicationWindow):
   sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);sidebar.set_size_request(155,-1); sidebar.set_margin_top(20); sidebar.set_margin_start(12); sidebar.set_margin_end(12); sidebar.add_css_class('sidebar'); side_scroll=Gtk.ScrolledWindow();side_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);side_scroll.set_min_content_width(178);side_scroll.set_child(sidebar);root.append(side_scroll)
   title=Gtk.Label(label='▣  NEON STORAGE',xalign=0); title.add_css_class('brand'); sidebar.append(title)
   self.nav_buttons=[]
-  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('◎','Radar doublons',self.duplicates_page),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
+  for icon,name,callback in [('⌂','Accueil',self.home),('🤖','Assistant',self.assistant_page),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('◎','Radar doublons',self.duplicates_page),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
    b=Gtk.Button();b.set_halign(Gtk.Align.FILL)
    b.connect('clicked',lambda _b,f=callback:f());sidebar.append(b)
    b.set_tooltip_text('Aller vers '+name);self.nav_buttons.append((b,icon,name))
@@ -703,6 +704,50 @@ class Window(Gtk.ApplicationWindow):
   self.file_filter=key;self.refresh()
  def update_file_actions(self):
   if hasattr(self,'file_actions'):self.file_actions.set_visible(self.selected() is not None)
+ def assistant_page(self,*_):
+  self.clear();self.mark_page('Assistant');self.heading('ASSISTANT GESTION DE STOCKAGE  🤖')
+  self.info('Salut ! 👋 Que veux-tu faire aujourd’hui ? Choisis une action. Assistant guidé local, sans connexion Internet.')
+  folder=Gtk.Entry(text=str(HOME),hexpand=True);self.content.append(folder)
+  self.info('Dossier dans lequel rechercher (tu peux changer ce chemin) :')
+  status=Gtk.Label(label='Choisis une action ci-dessous.',xalign=0,wrap=True);self.content.append(status)
+  results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6);self.content.append(results)
+  def clear_results():
+   while child:=results.get_first_child():results.remove(child)
+  def find(mode):
+   clear_results()
+   self.prompt('Assistant — rechercher','Nom du fichier ou dossier', '',lambda query:run_search(mode,query))
+  def run_search(mode,query):
+   clear_results();status.set_text('Recherche en cours…')
+   raw_folder=folder.get_text()
+   def worker():
+    try:
+     found,partial=assistant_tools.search_items(raw_folder,query)
+     GLib.idle_add(show_found,mode,found,partial)
+    except Exception as exc:GLib.idle_add(status.set_text,'Recherche impossible : '+str(exc))
+   threading.Thread(target=worker,daemon=True).start()
+  def show_found(mode,found,partial):
+   status.set_text(f'{len(found)} résultat(s)'+(' — recherche partielle (limite de sécurité)' if partial else ''))
+   if not found:results.append(Gtk.Label(label='Aucun résultat. Essaie un autre nom ou dossier.',xalign=0))
+   for path in found:
+    line=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=7);results.append(line)
+    label=Gtk.Label(label=str(path),xalign=0,wrap=True,hexpand=True);line.append(label)
+    if mode=='rename' and path.is_file():
+     self.btn(line,'Renommer…',lambda _b,p=path:ask_rename(p))
+    elif path.is_dir():
+     self.btn(line,'Ouvrir',lambda _b,p=path:self.open_dir(p))
+   return False
+  def ask_rename(path):
+   self.prompt('Assistant — renommer','Nouveau nom pour '+path.name,path.name,lambda name:confirm(path,name))
+  def confirm(path,name):
+   try:source,target=assistant_tools.preview_rename(path,name)
+   except Exception as exc:self.dialog('Renommage impossible',str(exc));return
+   if not source.is_file():self.dialog('Non pris en charge','Le renommage guidé accepte uniquement les fichiers.');return
+   self.dialog('C’est bien ce fichier ?',f'Fichier : {source}\nNouveau nom : {target.name}\nAucun autre fichier ne sera remplacé.',lambda:self.perform(lambda:assistant_tools.confirm_rename(source,target),'Fichier renommé'))
+  self.btn(self.content,'🔎 Rechercher un fichier ou dossier',lambda *_:find('search'))
+  self.btn(self.content,'✏️ Renommer un fichier',lambda *_:find('rename'))
+  self.btn(self.content,'📁 Ranger mes fichiers',lambda *_:self.dialog('Rangement','Cette fonction arrive dans une prochaine bêta. Aucun fichier modifié.'))
+  self.btn(self.content,'💾 Trouver les gros fichiers',lambda *_:self.storage_detective())
+  self.btn(self.content,'📋 Rechercher les doublons',lambda *_:self.duplicates_page())
  def open_dir(self,p):
   try:
    if not p.is_dir():raise NotADirectoryError(str(p))
