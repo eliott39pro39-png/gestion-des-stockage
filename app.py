@@ -770,18 +770,18 @@ class Window(Gtk.ApplicationWindow):
    if 'doublon' in lower:speak('📋 Bien sûr ! Je t’ouvre le radar des doublons !');self.duplicates_page();return
    if 'gros fichier' in lower or 'espace disque' in lower:speak('💾 Allons voir les gros fichiers !');self.storage_detective();return
    if 'ranger' in lower or 'organiser' in lower:speak('📁 Le rangement automatique arrive bientôt ! Je ne touche à rien sans ton accord. 💙');return
-   if any(x in lower for x in ('renomme','renommer')):
-    query=message
-    for word in ('renommer','renomme','Renommer','Renomme','le fichier','un fichier'):
-     query=query.replace(word,'')
+   if lower.startswith(('renomme ', 'renommer ')):
+    query=message.split(' ',1)[1].strip()
+    for prefix in ('le fichier ', 'un fichier ', 'le dossier ', 'un dossier '):
+     if query.casefold().startswith(prefix):query=query[len(prefix):].strip()
     query=query.strip(' :«»"')
     if query:run_search('rename',query)
     else:speak('✏️ Quel fichier veux-tu renommer ? Exemple : Renomme test.txt')
     return
-   if any(x in lower for x in ('trouve','trouver','cherche','chercher','recherche','rechercher')):
-    query=message
-    for word in ('rechercher','recherche','chercher','cherche','trouver','trouve','Rechercher','Recherche','Chercher','Cherche','Trouver','Trouve','le fichier','un fichier','dossier'):
-     query=query.replace(word,'')
+   if lower.startswith(('trouve ', 'trouver ', 'cherche ', 'chercher ', 'recherche ', 'rechercher ')):
+    query=message.split(' ',1)[1].strip()
+    for prefix in ('le fichier ', 'un fichier ', 'le dossier ', 'un dossier '):
+     if query.casefold().startswith(prefix):query=query[len(prefix):].strip()
     query=query.strip(' :«»"')
     if query:run_search('search',query)
     else:speak('🔎 Dis-moi le nom du fichier à chercher !')
