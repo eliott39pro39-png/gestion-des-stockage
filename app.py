@@ -760,6 +760,36 @@ class Window(Gtk.ApplicationWindow):
    except Exception as exc:self.dialog('Renommage impossible',str(exc));return
    if not source.is_file():self.dialog('Non pris en charge','Le renommage guidé accepte uniquement les fichiers.');return
    self.dialog('C’est bien ce fichier ?',f'Fichier : {source}\nNouveau nom : {target.name}\nAucun autre fichier ne sera remplacé.',lambda:self.perform(lambda:assistant_tools.confirm_rename(source,target),'Fichier renommé'))
+  def send(*_):
+   message=message_entry.get_text().strip()
+   if not message:return
+   message_entry.set_text('')
+   speak(message,True)
+   lower=message.casefold()
+   if 'doublon' in lower:speak('📋 Bien sûr ! Je t’ouvre le radar des doublons !');self.duplicates_page();return
+   if 'gros fichier' in lower or 'espace disque' in lower:speak('💾 Allons voir les gros fichiers !');self.storage_detective();return
+   if 'ranger' in lower or 'organiser' in lower:speak('📁 Le rangement automatique arrive bientôt ! Je ne touche à rien sans ton accord. 💙');return
+   if any(x in lower for x in ('renomme','renommer')):
+    query=message
+    for word in ('renommer','renomme','Renommer','Renomme','le fichier','un fichier'):
+     query=query.replace(word,'')
+    query=query.strip(' :«»"')
+    if query:run_search('rename',query)
+    else:speak('✏️ Quel fichier veux-tu renommer ? Exemple : Renomme test.txt')
+    return
+   if any(x in lower for x in ('trouve','trouver','cherche','chercher','recherche','rechercher')):
+    query=message
+    for word in ('rechercher','recherche','chercher','cherche','trouver','trouve','Rechercher','Recherche','Chercher','Cherche','Trouver','Trouve','le fichier','un fichier','dossier'):
+     query=query.replace(word,'')
+    query=query.strip(' :«»"')
+    if query:run_search('search',query)
+    else:speak('🔎 Dis-moi le nom du fichier à chercher !')
+    return
+   if lower in ('salut','bonjour','hello','coucou','hey'):speak('Coucou !! 👋💙 Je suis prêt à t’aider !');return
+   speak('🤔 Je ne comprends pas encore cette demande. Essaie « Trouve War Thunder », « Renomme test.txt » ou « Doublons » ! 💙')
+  self.btn(composer,'➤ Envoyer',send)
+  message_entry.connect('activate',send)
+  speak('Salut !! 👋💙 Dis-moi quel fichier tu cherches ! Par exemple : « Trouve War Thunder » 🔎')
   self.btn(self.content,'🔎 Rechercher un fichier ou dossier',lambda *_:find('search'))
   self.btn(self.content,'✏️ Renommer un fichier',lambda *_:find('rename'))
   self.btn(self.content,'📁 Ranger mes fichiers',lambda *_:self.dialog('Rangement','Cette fonction arrive dans une prochaine bêta. Aucun fichier modifié.'))
