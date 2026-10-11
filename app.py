@@ -94,7 +94,7 @@ class Window(Gtk.ApplicationWindow):
   sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);sidebar.set_size_request(155,-1); sidebar.set_margin_top(20); sidebar.set_margin_start(12); sidebar.set_margin_end(12); sidebar.add_css_class('sidebar'); side_scroll=Gtk.ScrolledWindow();side_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);side_scroll.set_min_content_width(178);side_scroll.set_child(sidebar);root.append(side_scroll)
   title=Gtk.Label(label='▣  NEON STORAGE',xalign=0); title.add_css_class('brand'); sidebar.append(title)
   self.nav_buttons=[]
-  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
+  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
    b=Gtk.Button();b.set_halign(Gtk.Align.FILL)
    b.connect('clicked',lambda _b,f=callback:f());sidebar.append(b)
    b.set_tooltip_text('Aller vers '+name);self.nav_buttons.append((b,icon,name))
@@ -462,6 +462,67 @@ class Window(Gtk.ApplicationWindow):
  def reset_prefs(self):
   self.prefs={};self.theme='system';self.accent='neon';self.show_hidden=False;self.background_style='aurora';self.density='comfortable';self.nav_style='icons';self.update_nav_labels()
   self.prefs['start_dir']=str(HOME);self.apply_theme();self.update_theme_label();self.save_prefs();self.settings_page()
+ def storage_detective(self,*_):
+  """Read-only, bounded large-file inventory, on Linux and Windows."""
+  self.clear();self.mark_page('Détective stockage');self.heading('DÉTECTIVE DE STOCKAGE  ◈')
+  self.info('Découvre ce qui occupe vraiment ton disque : les 20 fichiers les plus volumineux du dossier choisi.')
+  self.info('Analyse en lecture seule : aucun fichier supprimé, déplacé ou modifié. Les liens symboliques ne sont pas suivis.')
+  controls=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(controls)
+  folder=Gtk.Entry(text=str(HOME),hexpand=True);controls.append(folder)
+  self.btn(controls,'Analyser',lambda *_:self.start_storage_scan(folder.get_text()))
+  self.storage_scan_status=Gtk.Label(label='Choisis un dossier et lance l’analyse.',xalign=0,wrap=True)
+  self.content.append(self.storage_scan_status)
+  self.storage_scan_results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6)
+  self.content.append(self.storage_scan_results)
+ def start_storage_scan(self,raw_path):
+  if getattr(self,'_storage_scanning',False):
+   self.storage_scan_status.set_text('Une analyse est déjà en cours.');return
+  root=pathlib.Path(raw_path).expanduser()
+  if not root.is_dir():
+   self.storage_scan_status.set_text('Dossier introuvable ou inaccessible.');return
+  self._storage_scanning=True
+  self.storage_scan_status.set_text('Analyse en cours (maximum 30 000 fichiers)…')
+  while child:=self.storage_scan_results.get_first_child():self.storage_scan_results.remove(child)
+  def worker():
+   import heapq
+   largest=[];count=0;errors=0;total=0;pending=[root]
+   while pending and count<30000:
+    directory=pending.pop()
+    try:
+     with os.scandir(directory) as entries:
+      for item in entries:
+       try:
+        if item.is_symlink():continue
+        if item.is_dir(follow_symlinks=False):
+         pending.append(pathlib.Path(item.path));continue
+        if not item.is_file(follow_symlinks=False):continue
+        size=item.stat(follow_symlinks=False).st_size
+        total+=size;count+=1
+        if len(largest)<20:heapq.heappush(largest,(size,item.path))
+        elif size>largest[0][0]:heapq.heapreplace(largest,(size,item.path))
+        if count>=30000:break
+       except (OSError,PermissionError):errors+=1
+    except (OSError,PermissionError):errors+=1
+   results=sorted(largest,reverse=True)
+   GLib.idle_add(self.finish_storage_scan,root,results,count,total,errors,bool(pending))
+  threading.Thread(target=worker,daemon=True).start()
+ def finish_storage_scan(self,root,results,count,total,errors,limited):
+  self._storage_scanning=False
+  if self._active_page!='Détective stockage':return False
+  def pretty(n):
+   for unit in ('o','Ko','Mo','Go','To'):
+    if n<1024 or unit=='To':return f'{n:.1f} {unit}'
+    n/=1024
+  suffix=' — limite de 30 000 fichiers atteinte, résultats partiels' if limited else ''
+  self.storage_scan_status.set_text(f'{count} fichiers analysés · {pretty(total)} au total · {errors} accès impossibles'+suffix)
+  if not results:self.info('Aucun fichier trouvé dans ce dossier.')
+  for size,path in results:
+   row=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);row.add_css_class('release-card')
+   label=Gtk.Label(label=f'{pretty(size)}  ·  {path}',xalign=0,hexpand=True,wrap=True)
+   row.append(label)
+   self.btn(row,'Ouvrir le dossier',lambda _b,p=path:self.open_dir(pathlib.Path(p).parent))
+   self.storage_scan_results.append(row)
+  return False
  def home(self,*_):
   self.clear();self.mark_page('Accueil')
   hero=Gtk.Overlay();hero.set_size_request(-1,190);hero.add_css_class('hero');self.content.append(hero)
