@@ -1,0 +1,17 @@
+name: 27.5 validation
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  linux-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check for all Python files
+        run: python3 -m compileall -q app.py windows versions
+      - name: GTK4 headless startup smoke test
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-gi gir1.2-gtk-4.0 xvfb
+          xvfb-run -a /usr/bin/python3 -c "import app; w=app.Window(app.App()); w.files(); w.toggle_file_view(); w.duplicates_page(); w.storage_detective(); print('GTK smoke test OK')"
