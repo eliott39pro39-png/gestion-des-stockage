@@ -558,6 +558,8 @@ class Window(Gtk.ApplicationWindow):
   folder=Gtk.Entry(text=str(self.downloads_dir()),hexpand=True);self.content.append(folder)
   results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4);self.content.append(results)
   self._organization_plan=[]
+  self._last_organization_moves=[]
+  undo_status=Gtk.Label(label='Aucun déplacement à annuler.',xalign=0,wrap=True);self.content.append(undo_status)
   def preview(*_):
    while child:=results.get_first_child():results.remove(child)
    try:self._organization_plan=smart_tools.plan_organization(folder.get_text())
@@ -567,8 +569,26 @@ class Window(Gtk.ApplicationWindow):
   self.btn(self.content,'Analyser et prévisualiser',preview)
   def apply(*_):
    plan=list(self._organization_plan)
-   if plan:self.dialog('Confirmer les déplacements ?',f'{len(plan)} fichiers seront déplacés dans des sous-dossiers. Aucun fichier existant ne sera écrasé.',lambda:self.perform(lambda:smart_tools.apply_organization(plan),'Rangement terminé'))
+   if plan:self.dialog('Confirmer les déplacements ?',f'{len(plan)} fichiers seront déplacés dans des sous-dossiers. Aucun fichier existant ne sera écrasé.',lambda:self.perform(lambda:save_moves(plan),'Rangement terminé'))
+  def save_moves(plan):
+   moved=smart_tools.apply_organization(plan)
+   self._last_organization_moves=moved
+   self._organization_plan=[]
+   GLib.idle_add(undo_status.set_text,f'{len(moved)} fichier(s) déplacé(s). Annulation possible tant que les emplacements restent libres.')
+   return moved
   self.btn(self.content,'Confirmer les déplacements prévisualisés',apply)
+  def undo(*_):
+   moved=list(self._last_organization_moves)
+   if not moved:
+    self.dialog('Aucun rangement à annuler','Effectue d’abord un rangement dans cette session.')
+    return
+   def restore():
+    restored,skipped=smart_tools.undo_organization(moved)
+    self._last_organization_moves=skipped
+    GLib.idle_add(undo_status.set_text,f'{len(restored)} fichier(s) restauré(s), {len(skipped)} non restauré(s) pour éviter un écrasement.')
+    return restored
+   self.dialog('Annuler le dernier rangement ?',f'Tenter de remettre {len(moved)} fichiers à leur emplacement précédent. Les conflits seront ignorés.',lambda:self.perform(restore,'Annulation terminée'))
+  self.btn(self.content,'Annuler le dernier rangement',undo)
  def disk_map_page(self,*_):
   self.clear();self.mark_page('Carte du disque');self.heading('CARTE DU DISQUE  ▥')
   self.info('Répartition de la taille des fichiers par dossier. Lecture seule, limitée à 20 000 fichiers.')
