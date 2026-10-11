@@ -6,6 +6,7 @@ on:
     tags: ['v*']
     paths:
       - 'app.py'
+      - 'assistant_tools.py'
       - 'mountain-bg.png'
       - 'versions/**'
       - 'packaging/**'
@@ -22,7 +23,7 @@ jobs:
           set -euo pipefail
           test -s app.py
           test -s mountain-bg.png
-          python3 -m py_compile app.py
+          python3 -m py_compile app.py assistant_tools.py
           find versions -name app.py -exec python3 -m py_compile {} +
       - name: Determine package version
         id: version
@@ -50,31 +51,32 @@ jobs:
           test "$(dpkg-deb -f "$deb" Version)" = "${{ steps.version.outputs.value }}"
           dpkg-deb --contents "$deb" > /tmp/gestion-stockage-contents.txt
           grep -q 'usr/share/gestion-stockage/app.py' /tmp/gestion-stockage-contents.txt
+          grep -q 'usr/share/gestion-stockage/assistant_tools.py' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/share/gestion-stockage/mountain-bg.png' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/bin/gestion-stockage' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/share/applications/gestion-stockage.desktop' /tmp/gestion-stockage-contents.txt
           dpkg-deb --extract "$deb" /tmp/gestion-stockage-installed
-          python3 -m py_compile /tmp/gestion-stockage-installed/usr/share/gestion-stockage/app.py
+          python3 -m py_compile /tmp/gestion-stockage-installed/usr/share/gestion-stockage/app.py /tmp/gestion-stockage-installed/usr/share/gestion-stockage/assistant_tools.py
       - name: Upload downloadable build artifact
         uses: actions/upload-artifact@v4
         with:
           name: gestion-stockage-deb-${{ steps.version.outputs.value }}
           path: dist/*.deb
           if-no-files-found: error
-      - name: Publish Linux 27.5.1 official release
-        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.5.1'
+      - name: Publish Linux 27.5.2 beta release
+        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.5.2'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "v27.5.1" >/dev/null 2>&1; then
-            echo "Release v27.5.1 already exists; keeping published assets unchanged."
+          if gh release view "v27.5.2" >/dev/null 2>&1; then
+            echo "Release v27.5.2 already exists; keeping published assets unchanged."
           else
-            gh release create "v27.5.1" dist/gestion-stockage-27.5.1-all.deb \
+            gh release create "v27.5.2" dist/gestion-stockage-27.5.2-all.deb \
               --target "${GITHUB_SHA}" --title "Gestion de stockage 27.5.1 — Linux" \
-              --notes "Version Linux 27.5.1 : explorateur en colonnes, radar des doublons avec sélection manuelle, anciennes versions protégées et analyses annulables. Le paquet Debian met à niveau le paquet gestion-stockage existant. Compilation et structure du paquet validées automatiquement ; interface graphique à tester sur Ubuntu." \
-              --latest
+              --notes "Bêta 27.5.2 : nouvel onglet Assistant guidé, recherche locale de fichiers, renommage avec confirmation, accès aux gros fichiers et doublons. Tester sur des fichiers sans importance." \
+              --prerelease
           fi
       - name: Publish release only for explicit version tags
         if: github.ref_type == 'tag'
