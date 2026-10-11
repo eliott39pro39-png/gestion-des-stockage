@@ -709,8 +709,25 @@ class Window(Gtk.ApplicationWindow):
   self.info('Salut !! 👋💙 Écris-moi ce que tu cherches. Je te répondrai comme dans une conversation ! 🤖')
   folder=Gtk.Entry(text=str(HOME),hexpand=True);self.content.append(folder)
   self.info('Dossier dans lequel rechercher (tu peux changer ce chemin) :')
-  status=Gtk.Label(label='Choisis une action ci-dessous.',xalign=0,wrap=True);self.content.append(status)
-  results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6);self.content.append(results)
+  status=Gtk.Label(label='🤖 Salut !! 👋💙 Écris ta demande ci-dessous !',xalign=0,wrap=True);self.content.append(status)
+  scroller=Gtk.ScrolledWindow(vexpand=True,min_content_height=280)
+  self.content.append(scroller)
+  results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=9)
+  results.set_margin_top(12);results.set_margin_bottom(12)
+  scroller.set_child(results)
+  def speak(message,user=False):
+   row=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+   row.set_halign(Gtk.Align.END if user else Gtk.Align.START)
+   label=Gtk.Label(label=('🧑  ' if user else '🤖  ')+message,xalign=0,wrap=True,selectable=True)
+   label.set_max_width_chars(76)
+   label.set_margin_top(8);label.set_margin_bottom(8)
+   label.set_margin_start(12);label.set_margin_end(12)
+   label.add_css_class('card')
+   row.append(label);results.append(row)
+   return row
+  composer=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(composer)
+  message_entry=Gtk.Entry(placeholder_text='💬 Ex : Trouve War Thunder',hexpand=True)
+  composer.append(message_entry)
   def clear_results():
    while child:=results.get_first_child():results.remove(child)
   def find(mode):
