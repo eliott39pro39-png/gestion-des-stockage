@@ -3,7 +3,7 @@ import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threadin
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.5.0'
+VERSION='27.5.1'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
@@ -339,9 +339,9 @@ class Window(Gtk.ApplicationWindow):
      with urllib.request.urlopen(req,timeout=45) as source,open(temp,'wb') as dest:
       shutil.copyfileobj(source,dest)
      if temp.stat().st_size<1024:raise ValueError('Téléchargement incomplet.')
-     info=subprocess.run(['dpkg-deb','-f',str(temp),'Package','Version'],capture_output=True,text=True,timeout=10,check=True)
-     fields=info.stdout.splitlines()
-     if fields!=['gestion-stockage',release['version']]:raise ValueError('Le paquet téléchargé ne correspond pas à la version attendue.')
+     package=subprocess.run(['dpkg-deb','-f',str(temp),'Package'],capture_output=True,text=True,timeout=10,check=True).stdout.strip()
+     version=subprocess.run(['dpkg-deb','-f',str(temp),'Version'],capture_output=True,text=True,timeout=10,check=True).stdout.strip()
+     if package!='gestion-stockage' or version!=release['version']:raise ValueError('Le paquet téléchargé ne correspond pas à la version attendue.')
      temp.replace(path)
     finally:
      if temp.exists():temp.unlink()
