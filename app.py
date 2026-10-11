@@ -976,5 +976,10 @@ class Window(Gtk.ApplicationWindow):
   self.info('Pour vider la corbeille ou gérer les caches système, utilisez les outils Ubuntu dédiés. Aucune suppression massive intégrée.')
 class App(Gtk.Application):
  def __init__(self):super().__init__(application_id='io.github.gestionstockage.Final',flags=Gio.ApplicationFlags.FLAGS_NONE)
- def do_activate(self):Window(self).present()
+ def do_activate(self):
+  windows=self.get_windows()
+  if windows:
+   windows[0].present()
+   return
+  Window(self).present()
 if __name__=='__main__':sys.exit(App().run(sys.argv))
