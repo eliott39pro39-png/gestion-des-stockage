@@ -433,7 +433,7 @@ class Window(Gtk.ApplicationWindow):
   known_buggy={'26.8','26.8.2','26.8.3','26.8.4','26.8.5','26.8.6'}
   def version_key(name):
    return tuple(int(part) for part in name.split('.'))
-  available=sorted((p for p in archive.iterdir() if p.is_dir() and re.fullmatch(r'[0-9]+(?:\\.[0-9]+)*',p.name) and (p/'app.py').is_file()),key=lambda p:version_key(p.name),reverse=True) if archive.is_dir() else []
+  available=sorted((p for p in archive.iterdir() if p.is_dir() and re.fullmatch(r'[0-9]+(?:\.[0-9]+)*',p.name) and (p/'app.py').is_file()),key=lambda p:version_key(p.name),reverse=True) if archive.is_dir() else []
   for heading,items in [('VERSIONS PRÉCÉDENTES',[p for p in available if p.name not in known_buggy]),('VERSIONS AVEC PROBLÈMES CONNUS ⚠',[p for p in available if p.name in known_buggy])]:
    self.heading(heading)
    if not items:self.info('Aucune version archivée dans cette catégorie.')
