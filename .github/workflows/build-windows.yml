@@ -1,0 +1,67 @@
+name: Build Windows preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app.py'
+      - 'mountain-bg.png'
+      - 'windows/**'
+      - 'versions/**'
+      - '.github/workflows/build-windows.yml'
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-gobject
+            mingw-w64-ucrt-x86_64-gtk4
+            mingw-w64-ucrt-x86_64-pyinstaller
+            mingw-w64-ucrt-x86_64-python-send2trash
+            mingw-w64-ucrt-x86_64-python-cairo
+            zip
+      - name: Check Windows Python syntax
+        run: |
+          python -m py_compile app.py windows/app_windows.py
+          find versions -name app.py -exec python -m py_compile {} +
+      - name: Create Windows-named legacy versions
+        run: |
+          mkdir -p windows/legacy
+          for dir in versions/*; do
+            if test -f "$dir/app.py"; then
+              version="${dir##*/}"
+              mkdir -p "windows/legacy/GestionStockage-Windows-$version"
+              cp "$dir/app.py" "windows/legacy/GestionStockage-Windows-$version/app.py"
+            fi
+          done
+      - name: Package Windows executable
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --windowed \
+            --name GestionStockage-Windows \
+            --add-data "mountain-bg.png:." \
+            --add-data "app.py:." \
+            --add-data "versions:versions" \
+            --hidden-import gi \
+            --collect-all gi \
+            windows/app_windows.py
+      - name: Archive Windows preview
+        run: |
+          cp -r windows/legacy dist/GestionStockage-Windows/
+          cd dist
+          7z a -tzip GestionStockage-Windows-27.2.1-preview.zip GestionStockage-Windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GestionStockage-Windows-27.2.1-preview
+          path: dist/GestionStockage-Windows-27.2.1-preview.zip
+          if-no-files-found: error
