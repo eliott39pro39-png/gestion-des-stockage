@@ -138,6 +138,31 @@ class Window(Gtk.ApplicationWindow):
  def toggle_maximize(self,*_):
   if self.is_maximized():self.unmaximize()
   else:self.maximize()
+ def smooth_scroll(self,scroller):
+  # Animate discrete mouse-wheel steps; keep precise touchpad scrolling native.
+  state={'target':None,'running':False}
+  controller=Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags.VERTICAL)
+  def on_scroll(ctrl,dx,dy):
+   if ctrl.get_unit()!=Gdk.ScrollUnit.WHEEL:return False
+   adjustment=scroller.get_vadjustment()
+   maximum=max(adjustment.get_lower(),adjustment.get_upper()-adjustment.get_page_size())
+   if maximum<=adjustment.get_lower():return False
+   current=adjustment.get_value()
+   baseline=state['target'] if state['running'] else current
+   state['target']=min(maximum,max(adjustment.get_lower(),baseline+dy*88))
+   if not state['running']:
+    state['running']=True
+    def animate():
+     value=adjustment.get_value();target=state['target']
+     diff=target-value
+     if abs(diff)<0.7:
+      adjustment.set_value(target);state['running']=False;return False
+     adjustment.set_value(value+diff*0.24)
+     return True
+    GLib.timeout_add(16,animate)
+   return True
+  controller.connect('scroll',on_scroll)
+  scroller.add_controller(controller)
  def clear(self):
   # Create the next page without destroying the visible one: Gtk.Stack
   # crossfades two complete pages instead of fading newly inserted widgets.
@@ -150,6 +175,7 @@ class Window(Gtk.ApplicationWindow):
   scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True)
   scroll.set_policy(Gtk.PolicyType.AUTOMATIC,Gtk.PolicyType.AUTOMATIC)
   scroll.set_kinetic_scrolling(True)
+  self.smooth_scroll(scroll)
   scroll.set_overlay_scrolling(True)
   scroll.set_child(content)
   self.page_stack.add_child(scroll)
