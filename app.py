@@ -413,7 +413,7 @@ class Window(Gtk.ApplicationWindow):
     self.btn(row,'Ouvrir ⚠',lambda _b,p=script,v=version:self.dialog('Version bugguée','Cette version a eu des problèmes connus. Les graphiques ont été retirés de cette copie. Ouvrir quand même ?',lambda:self.launch_beta(p,v)))
  def launch_beta(self,script,version):
   try:
-   subprocess.Popen([sys.executable,str(script)],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   subprocess.Popen([sys.executable,str(script)],env={**os.environ,'GESTION_STOCKAGE_ARCHIVE_CHILD':'1'},start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
    self.notify('Version bêta lancée','Gestion de stockage '+version)
   except OSError as exc:self.dialog('Impossible de lancer la version',str(exc))
  def about_page(self,*_):
@@ -529,6 +529,7 @@ class Window(Gtk.ApplicationWindow):
   return False
  def trash_duplicates(self,*_):
   chosen=[p for check,p in getattr(self,'duplicate_checks',[]) if check.get_active()]
+
   if not chosen:self.dialog('Aucune sélection','Coche uniquement les copies à mettre à la corbeille.');return
   self.dialog('Confirmer la mise à la corbeille',f'{len(chosen)} fichier(s) sélectionné(s). Vérifie que tu conserves au moins une copie de chaque document.',lambda:self.execute_trash_duplicates(chosen))
  def execute_trash_duplicates(self,paths):
