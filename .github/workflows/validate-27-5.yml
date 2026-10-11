@@ -18,7 +18,7 @@ jobs:
       - name: Syntax check for all Python files
         run: python3 -m compileall -q app.py windows versions tests
       - name: Verify safe organizer, disk map and backups
-        run: python3 tests/test_smart_tools.py
+        run: PYTHONPATH=. python3 tests/test_smart_tools.py
       - name: GTK4 headless startup smoke test
         run: |
           sudo apt-get update -qq
