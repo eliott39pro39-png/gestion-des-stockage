@@ -705,32 +705,50 @@ class Window(Gtk.ApplicationWindow):
  def update_file_actions(self):
   if hasattr(self,'file_actions'):self.file_actions.set_visible(self.selected() is not None)
  def assistant_page(self,*_):
-  self.clear();self.mark_page('Assistant');self.heading('ASSISTANT GESTION DE STOCKAGE  🤖')
-  self.info('Salut ! 👋 Que veux-tu faire aujourd’hui ? Choisis une action. Assistant guidé local, sans connexion Internet.')
+  self.clear();self.mark_page('Assistant');self.heading('DISCUTE AVEC TON ASSISTANT  🤖')
+  self.info('Salut !! 👋💙 Écris-moi ce que tu cherches. Je te répondrai comme dans une conversation ! 🤖')
   folder=Gtk.Entry(text=str(HOME),hexpand=True);self.content.append(folder)
   self.info('Dossier dans lequel rechercher (tu peux changer ce chemin) :')
-  status=Gtk.Label(label='Choisis une action ci-dessous.',xalign=0,wrap=True);self.content.append(status)
-  results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6);self.content.append(results)
+  status=Gtk.Label(label='🤖 Salut !! 👋💙 Écris ta demande ci-dessous !',xalign=0,wrap=True);self.content.append(status)
+  scroller=Gtk.ScrolledWindow(vexpand=True,min_content_height=280)
+  self.content.append(scroller)
+  results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=9)
+  results.set_margin_top(12);results.set_margin_bottom(12)
+  scroller.set_child(results)
+  def speak(message,user=False):
+   row=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+   row.set_halign(Gtk.Align.END if user else Gtk.Align.START)
+   label=Gtk.Label(label=('🧑  ' if user else '🤖  ')+message,xalign=0,wrap=True,selectable=True)
+   label.set_max_width_chars(76)
+   label.set_margin_top(8);label.set_margin_bottom(8)
+   label.set_margin_start(12);label.set_margin_end(12)
+   label.add_css_class('card')
+   row.append(label);results.append(row)
+   GLib.idle_add(lambda:scroller.get_vadjustment().set_value(scroller.get_vadjustment().get_upper()) or False)
+   return False
+  composer=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(composer)
+  message_entry=Gtk.Entry(placeholder_text='💬 Ex : Trouve War Thunder',hexpand=True)
+  composer.append(message_entry)
   def clear_results():
-   while child:=results.get_first_child():results.remove(child)
+   pass  # Preserve conversation history
   def find(mode):
    clear_results()
    self.prompt('Assistant — rechercher','Nom du fichier ou dossier', '',lambda query:run_search(mode,query))
   def run_search(mode,query):
-   clear_results();status.set_text('Recherche en cours…')
+   speak('🔎 Je cherche « '+query+' »…')
    raw_folder=folder.get_text()
    def worker():
     try:
      found,partial=assistant_tools.search_items(raw_folder,query)
      GLib.idle_add(show_found,mode,found,partial)
-    except Exception as exc:GLib.idle_add(status.set_text,'Recherche impossible : '+str(exc))
+    except Exception as exc:GLib.idle_add(speak,'😕 Recherche impossible : '+str(exc))
    threading.Thread(target=worker,daemon=True).start()
   def show_found(mode,found,partial):
-   status.set_text(f'{len(found)} résultat(s)'+(' — recherche partielle (limite de sécurité)' if partial else ''))
-   if not found:results.append(Gtk.Label(label='Aucun résultat. Essaie un autre nom ou dossier.',xalign=0))
+   if found:speak(f'OUI !! 🎉 J’ai trouvé {len(found)} fichier(s) ou dossier(s) correspondant à ta recherche !'+(' ⚠️ Recherche partielle.' if partial else '')+' 👇')
+   else:speak('😕 Aucun résultat. Essaie un autre nom ou dossier !')
    for path in found:
     line=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=7);results.append(line)
-    label=Gtk.Label(label=str(path),xalign=0,wrap=True,hexpand=True);line.append(label)
+    label=Gtk.Label(label=('📁 ' if path.is_dir() else '📄 ')+str(path),xalign=0,wrap=True,hexpand=True);line.append(label)
     if mode=='rename' and path.is_file():
      self.btn(line,'Renommer…',lambda _b,p=path:ask_rename(p))
     elif path.is_dir():
@@ -743,6 +761,36 @@ class Window(Gtk.ApplicationWindow):
    except Exception as exc:self.dialog('Renommage impossible',str(exc));return
    if not source.is_file():self.dialog('Non pris en charge','Le renommage guidé accepte uniquement les fichiers.');return
    self.dialog('C’est bien ce fichier ?',f'Fichier : {source}\nNouveau nom : {target.name}\nAucun autre fichier ne sera remplacé.',lambda:self.perform(lambda:assistant_tools.confirm_rename(source,target),'Fichier renommé'))
+  def send(*_):
+   message=message_entry.get_text().strip()
+   if not message:return
+   message_entry.set_text('')
+   speak(message,True)
+   lower=message.casefold()
+   if 'doublon' in lower:speak('📋 Bien sûr ! Je t’ouvre le radar des doublons !');self.duplicates_page();return
+   if 'gros fichier' in lower or 'espace disque' in lower:speak('💾 Allons voir les gros fichiers !');self.storage_detective();return
+   if 'ranger' in lower or 'organiser' in lower:speak('📁 Le rangement automatique arrive bientôt ! Je ne touche à rien sans ton accord. 💙');return
+   if lower.startswith(('renomme ', 'renommer ')):
+    query=message.split(' ',1)[1].strip()
+    for prefix in ('le fichier ', 'un fichier ', 'le dossier ', 'un dossier '):
+     if query.casefold().startswith(prefix):query=query[len(prefix):].strip()
+    query=query.strip(' :«»"')
+    if query:run_search('rename',query)
+    else:speak('✏️ Quel fichier veux-tu renommer ? Exemple : Renomme test.txt')
+    return
+   if lower.startswith(('trouve ', 'trouver ', 'cherche ', 'chercher ', 'recherche ', 'rechercher ')):
+    query=message.split(' ',1)[1].strip()
+    for prefix in ('le fichier ', 'un fichier ', 'le dossier ', 'un dossier '):
+     if query.casefold().startswith(prefix):query=query[len(prefix):].strip()
+    query=query.strip(' :«»"')
+    if query:run_search('search',query)
+    else:speak('🔎 Dis-moi le nom du fichier à chercher !')
+    return
+   if lower in ('salut','bonjour','hello','coucou','hey'):speak('Coucou !! 👋💙 Je suis prêt à t’aider !');return
+   speak('🤔 Je ne comprends pas encore cette demande. Essaie « Trouve War Thunder », « Renomme test.txt » ou « Doublons » ! 💙')
+  self.btn(composer,'➤ Envoyer',send)
+  message_entry.connect('activate',send)
+  speak('Salut !! 👋💙 Dis-moi quel fichier tu cherches ! Par exemple : « Trouve War Thunder » 🔎')
   self.btn(self.content,'🔎 Rechercher un fichier ou dossier',lambda *_:find('search'))
   self.btn(self.content,'✏️ Renommer un fichier',lambda *_:find('rename'))
   self.btn(self.content,'📁 Ranger mes fichiers',lambda *_:self.dialog('Rangement','Cette fonction arrive dans une prochaine bêta. Aucun fichier modifié.'))
