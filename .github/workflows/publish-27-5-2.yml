@@ -22,7 +22,8 @@ jobs:
           gh release download v27.5.2 --repo "$GITHUB_REPOSITORY" --pattern 'gestion-stockage-27.5.2-all.deb' --dir /tmp/gs-release
           test -s /tmp/gs-release/gestion-stockage-27.5.2-all.deb
           test "$(dpkg-deb -f /tmp/gs-release/gestion-stockage-27.5.2-all.deb Version)" = "27.5.2"
-          dpkg-deb --contents /tmp/gs-release/gestion-stockage-27.5.2-all.deb | grep -q 'assistant_tools.py'
+          dpkg-deb --contents /tmp/gs-release/gestion-stockage-27.5.2-all.deb > /tmp/gs-contents.txt
+          grep 'assistant_tools.py' /tmp/gs-contents.txt
       - name: Make 27.5.2 visible to built-in updater
         env:
           GH_TOKEN: ${{ github.token }}
