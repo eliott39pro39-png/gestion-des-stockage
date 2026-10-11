@@ -724,6 +724,7 @@ class Window(Gtk.ApplicationWindow):
    label.set_margin_start(12);label.set_margin_end(12)
    label.add_css_class('card')
    row.append(label);results.append(row)
+   GLib.idle_add(lambda:scroller.get_vadjustment().set_value(scroller.get_vadjustment().get_upper()) or False)
    return False
   composer=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(composer)
   message_entry=Gtk.Entry(placeholder_text='💬 Ex : Trouve War Thunder',hexpand=True)
@@ -743,8 +744,8 @@ class Window(Gtk.ApplicationWindow):
     except Exception as exc:GLib.idle_add(speak,'😕 Recherche impossible : '+str(exc))
    threading.Thread(target=worker,daemon=True).start()
   def show_found(mode,found,partial):
-   speak(f'OUI !! 🎉 J’ai trouvé {len(found)} fichier(s) ou dossier(s) correspondant à ta recherche !'+(' ⚠️ Recherche partielle.' if partial else '')+' 👇')
-   if not found:speak('😕 Aucun résultat. Essaie un autre nom ou dossier !')
+   if found:speak(f'OUI !! 🎉 J’ai trouvé {len(found)} fichier(s) ou dossier(s) correspondant à ta recherche !'+(' ⚠️ Recherche partielle.' if partial else '')+' 👇')
+   else:speak('😕 Aucun résultat. Essaie un autre nom ou dossier !')
    for path in found:
     line=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=7);results.append(line)
     label=Gtk.Label(label=('📁 ' if path.is_dir() else '📄 ')+str(path),xalign=0,wrap=True,hexpand=True);line.append(label)
