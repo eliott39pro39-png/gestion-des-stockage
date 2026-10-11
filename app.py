@@ -306,7 +306,7 @@ class Window(Gtk.ApplicationWindow):
     req=urllib.request.Request('https://api.github.com/repos/eliott39pro39-png/gestion-des-stockage/releases/latest',headers={'User-Agent':'GestionStockage/'+VERSION,'Accept':'application/vnd.github+json'})
     with urllib.request.urlopen(req,timeout=12) as response:release=json.load(response)
     tag=release.get('tag_name','').lstrip('v')
-    if not re.fullmatch(r'\\d+\\.\\d+(?:\\.\\d+)?',tag):raise ValueError('Version distante invalide.')
+    if not re.fullmatch(r'[0-9]+\.[0-9]+(?:\.[0-9]+)?',tag):raise ValueError('Version distante invalide.')
     def parts(v):return tuple(int(x) for x in v.split('.'))+(0,)*(3-len(v.split('.')))
     if parts(tag)<=parts(VERSION):
      GLib.idle_add(self._update_message,'Tu as déjà la dernière version officielle ('+VERSION+').');return
