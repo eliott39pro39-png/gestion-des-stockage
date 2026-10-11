@@ -36,7 +36,7 @@ jobs:
             zip
       - name: Check Windows Python syntax
         run: |
-          python -m py_compile app.py assistant_tools.py assistant_history.py windows/app_windows.py
+          python -m py_compile app.py assistant_tools.py assistant_history.py smart_organizer.py windows/app_windows.py
           find versions -name app.py -exec python -m py_compile {} +
       - name: Verify storage detective and Windows update adapter
         run: |
@@ -66,10 +66,12 @@ jobs:
             --add-data "app.py:." \
             --add-data "assistant_tools.py:." \
             --add-data "assistant_history.py:." \
+            --add-data "smart_organizer.py:." \
             --add-data "versions:versions" \
             --hidden-import gi \
             --hidden-import assistant_tools \
             --hidden-import assistant_history \
+            --hidden-import smart_organizer \
             --collect-all gi \
             windows/app_windows.py
       - name: Archive Windows preview

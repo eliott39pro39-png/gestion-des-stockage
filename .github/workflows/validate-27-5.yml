@@ -19,6 +19,8 @@ jobs:
         run: python3 -m compileall -q app.py assistant_tools.py windows versions tests
       - name: Assistant safety regression tests
         run: PYTHONPATH=. python3 tests/test_assistant_tools.py
+      - name: Organizer tests
+        run: PYTHONPATH=. python3 tests/test_smart_organizer.py
       - name: GTK4 headless startup smoke test
         run: |
           sudo apt-get update -qq

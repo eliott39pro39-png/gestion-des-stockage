@@ -23,7 +23,7 @@ jobs:
           set -euo pipefail
           test -s app.py
           test -s mountain-bg.png
-          python3 -m py_compile app.py assistant_tools.py assistant_history.py
+          python3 -m py_compile app.py assistant_tools.py assistant_history.py smart_organizer.py
           find versions -name app.py -exec python3 -m py_compile {} +
       - name: Determine package version
         id: version
@@ -53,6 +53,7 @@ jobs:
           grep -q 'usr/share/gestion-stockage/app.py' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/share/gestion-stockage/assistant_tools.py' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/share/gestion-stockage/assistant_history.py' /tmp/gestion-stockage-contents.txt
+          grep -q 'usr/share/gestion-stockage/smart_organizer.py' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/share/gestion-stockage/mountain-bg.png' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/bin/gestion-stockage' /tmp/gestion-stockage-contents.txt
           grep -q 'usr/share/applications/gestion-stockage.desktop' /tmp/gestion-stockage-contents.txt
