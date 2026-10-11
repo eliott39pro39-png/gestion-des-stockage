@@ -22,6 +22,8 @@ jobs:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -48,6 +50,8 @@ jobs:
           assert any(isinstance(node, ast.FunctionDef) and node.name == 'win_updates_page' for node in ast.walk(adapter))
           print('Storage detective and Windows updater syntax OK')
           PY
+      - name: Snapshot previous versions
+        run: python packaging/archive_versions.py
       - name: Create Windows-named legacy versions
         run: |
           mkdir -p windows/legacy
