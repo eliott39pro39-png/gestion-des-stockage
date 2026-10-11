@@ -2,7 +2,7 @@ name: Build Debian package
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'feature/linux-27.3-fluid']
     tags: ['v*']
     paths:
       - 'app.py'
@@ -31,7 +31,7 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             v="${GITHUB_REF_NAME#v}"
           else
-            v="27.2.1"
+            v="$(python3 -c "import ast; t=ast.parse(open(\'app.py\',encoding=\'utf-8\').read()); print(next(n.value.value for n in t.body if isinstance(n,ast.Assign) and any(isinstance(x,ast.Name) and x.id==\'VERSION\' for x in n.targets)))")"
           fi
           [[ "$v" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           echo "value=$v" >> "$GITHUB_OUTPUT"
