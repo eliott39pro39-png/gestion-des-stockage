@@ -3,6 +3,7 @@ import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threadin
 from gi.repository import Gtk, Gio, GLib, Gdk
 import assistant_tools
 import assistant_history
+import smart_organizer
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
 VERSION='27.5.4'
@@ -93,7 +94,7 @@ class Window(Gtk.ApplicationWindow):
   Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(),self.css,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
   self.apply_theme()
   root=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL);root.add_css_class('app-root'); self.set_child(root)
-  sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);sidebar.set_size_request(155,-1); sidebar.set_margin_top(20); sidebar.set_margin_start(12); sidebar.set_margin_end(12); sidebar.add_css_class('sidebar'); side_scroll=Gtk.ScrolledWindow();side_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);side_scroll.set_min_content_width(178);side_scroll.set_child(sidebar);root.append(side_scroll)
+  sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);sidebar.set_size_request(155,-1); sidebar.set_margin_top(20); sidebar.set_margin_start(12); sidebar.set_margin_end(12); sidebar.add_css_class('sidebar'); side_scroll=Gtk.ScrolledWindow();side_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);side_scroll.set_min_content_width(178);side_scroll.set_kinetic_scrolling(True);side_scroll.set_child(sidebar);root.append(side_scroll)
   title=Gtk.Label(label='▣  NEON STORAGE',xalign=0); title.add_css_class('brand'); sidebar.append(title)
   self.nav_buttons=[]
   for icon,name,callback in [('⌂','Accueil',self.home),('🤖','Assistant',self.assistant_page),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('◎','Radar doublons',self.duplicates_page),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
@@ -148,6 +149,8 @@ class Window(Gtk.ApplicationWindow):
   content.set_hexpand(True);content.add_css_class('content-area')
   scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True)
   scroll.set_policy(Gtk.PolicyType.AUTOMATIC,Gtk.PolicyType.AUTOMATIC)
+  scroll.set_kinetic_scrolling(True)
+  scroll.set_overlay_scrolling(True)
   scroll.set_child(content)
   self.page_stack.add_child(scroll)
   self.content=content;self.page_scroll=scroll;self._pending_old_page=old
@@ -652,7 +655,7 @@ class Window(Gtk.ApplicationWindow):
    if path.is_dir():self.btn(quick,label,lambda _b,p=path:self.open_dir(p))
   actions=Gtk.Label(label='Outils',xalign=0);actions.add_css_class('dashboard-section');self.content.append(actions)
   tools=Gtk.FlowBox();tools.set_selection_mode(Gtk.SelectionMode.NONE);tools.set_max_children_per_line(3);tools.set_row_spacing(8);tools.set_column_spacing(8);self.content.append(tools)
-  for label,callback in [('▣  Explorateur',self.files),('◇  Jeux & applis',self.games),('✦  Nettoyage sécurisé',self.clean),('⬇  Téléchargements et mises à jour',self.downloads_page),('◷  Anciennes versions',self.versions_page),('★  Mes favoris',self.favorites_page)]:
+  for label,callback in [('📁  Rangement intelligent',self.organizer_page),('▣  Explorateur',self.files),('◇  Jeux & applis',self.games),('✦  Nettoyage sécurisé',self.clean),('⬇  Téléchargements et mises à jour',self.downloads_page),('◷  Anciennes versions',self.versions_page),('★  Mes favoris',self.favorites_page)]:
    self.btn(tools,label,callback)
   self.info('F11 : plein écran • Échap : quitter le plein écran • Ctrl+2 : téléchargements')
  def files(self,*_):
@@ -712,6 +715,7 @@ class Window(Gtk.ApplicationWindow):
   self.info('Dossier dans lequel rechercher (tu peux changer ce chemin) :')
   status=Gtk.Label(label='🤖 Salut !! 👋💙 Écris ta demande ci-dessous !',xalign=0,wrap=True);self.content.append(status)
   scroller=Gtk.ScrolledWindow(vexpand=True,min_content_height=280)
+  scroller.set_kinetic_scrolling(True)
   self.content.append(scroller)
   results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=9)
   results.set_margin_top(12);results.set_margin_bottom(12)
@@ -812,7 +816,7 @@ class Window(Gtk.ApplicationWindow):
   self.btn(self.content,'🗑️ Effacer l’historique du chat',erase_history)
   self.btn(self.content,'🔎 Rechercher un fichier ou dossier',lambda *_:find('search'))
   self.btn(self.content,'✏️ Renommer un fichier',lambda *_:find('rename'))
-  self.btn(self.content,'📁 Ranger mes fichiers',lambda *_:self.dialog('Rangement','Cette fonction arrive dans une prochaine bêta. Aucun fichier modifié.'))
+  self.btn(self.content,'📁 Ranger mes fichiers',self.organizer_page)
   self.btn(self.content,'💾 Trouver les gros fichiers',lambda *_:self.storage_detective())
   self.btn(self.content,'📋 Rechercher les doublons',lambda *_:self.duplicates_page())
  def open_dir(self,p):
