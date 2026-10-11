@@ -21,6 +21,8 @@ jobs:
         run: PYTHONPATH=. python3 tests/test_assistant_tools.py
       - name: Organizer tests
         run: PYTHONPATH=. python3 tests/test_smart_organizer.py
+      - name: Archive version tests
+        run: python3 tests/test_archive_versions.py
       - name: GTK4 headless startup smoke test
         run: |
           sudo apt-get update -qq
