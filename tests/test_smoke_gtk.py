@@ -19,8 +19,11 @@ with tempfile.TemporaryDirectory() as directory:
     (root / "different.txt").write_bytes(b"other")
     window.cwd = root
     window.files()
+    assert not window.listbox.get_activate_on_single_click()
+    assert not window.file_grid.get_activate_on_single_click()
     assert len(window.entries) == 4
     window.toggle_file_view()
+    assert not window.file_grid.get_activate_on_single_click()
     assert window.file_view in ("grid", "list")
     window.toggle_file_view()
     window.duplicates_page()
