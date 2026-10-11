@@ -31,7 +31,7 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             v="${GITHUB_REF_NAME#v}"
           else
-            v="$(python3 -c "import ast; t=ast.parse(open(\'app.py\',encoding=\'utf-8\').read()); print(next(n.value.value for n in t.body if isinstance(n,ast.Assign) and any(isinstance(x,ast.Name) and x.id==\'VERSION\' for x in n.targets)))")"
+            v="$(sed -n \"s/^VERSION='\\([^']*\\)'$/\\1/p\" app.py | head -n 1)"
           fi
           [[ "$v" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           echo "value=$v" >> "$GITHUB_OUTPUT"
