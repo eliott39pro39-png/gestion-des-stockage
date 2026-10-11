@@ -687,8 +687,8 @@ class Window(Gtk.ApplicationWindow):
    self.btn(filters,label,lambda _b,k=key:self.set_file_filter(k)).add_css_class('file-filter')
   self.count_label=Gtk.Label(xalign=0);self.count_label.add_css_class('file-count');self.content.append(self.count_label)
   scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True);scroll.set_min_content_height(240);self.content.append(scroll)
-  self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions())
-  self.file_grid=Gtk.FlowBox();self.file_grid.set_selection_mode(Gtk.SelectionMode.SINGLE);self.file_grid.set_min_children_per_line(2);self.file_grid.set_max_children_per_line(5);self.file_grid.set_column_spacing(8);self.file_grid.set_row_spacing(8)
+  self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.set_activate_on_single_click(False);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions())
+  self.file_grid=Gtk.FlowBox();self.file_grid.set_selection_mode(Gtk.SelectionMode.SINGLE);self.file_grid.set_activate_on_single_click(False);self.file_grid.set_min_children_per_line(2);self.file_grid.set_max_children_per_line(5);self.file_grid.set_column_spacing(8);self.file_grid.set_row_spacing(8)
   self.file_grid.connect('child-activated',lambda _box,child:self.open_dir(child.path) if child.path.is_dir() else self.open_file_path(child.path))
   self.file_grid.connect('selected-children-changed',lambda *_:self.update_file_actions())
   scroll.set_child(self.file_grid if self.file_view=='grid' else self.listbox)
@@ -696,6 +696,7 @@ class Window(Gtk.ApplicationWindow):
   for label,cb in [('Ouvrir',self.open_selected),('📋 Copier chemin',self.copy_selected_path),('Copier vers…',lambda *_:self.choose_destination(False)),('Déplacer vers…',lambda *_:self.choose_destination(True)),('Renommer',self.rename),('Corbeille',self.trash),('Supprimer définitivement',self.delete)]:self.btn(actions,label,cb)
   actions.get_last_child().add_css_class('danger-action');actions.set_visible(False)
   
+  self.info('Un clic sélectionne le fichier pour Renommer, Copier ou Déplacer. Double-clic pour ouvrir.')
   self.refresh()
  def toggle_file_view(self,*_):
   self.file_view='grid' if self.file_view=='list' else 'list';self.save_prefs();self.files()
