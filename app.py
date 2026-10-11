@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex, hashlib
 from gi.repository import Gtk, Gio, GLib, Gdk
+import smart_tools
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
 VERSION='27.5.1'
@@ -94,7 +95,7 @@ class Window(Gtk.ApplicationWindow):
   sidebar=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);sidebar.set_size_request(155,-1); sidebar.set_margin_top(20); sidebar.set_margin_start(12); sidebar.set_margin_end(12); sidebar.add_css_class('sidebar'); side_scroll=Gtk.ScrolledWindow();side_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);side_scroll.set_min_content_width(178);side_scroll.set_child(sidebar);root.append(side_scroll)
   title=Gtk.Label(label='▣  NEON STORAGE',xalign=0); title.add_css_class('brand'); sidebar.append(title)
   self.nav_buttons=[]
-  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('◎','Radar doublons',self.duplicates_page),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
+  for icon,name,callback in [('⌂','Accueil',self.home),('▣','Fichiers',self.files),('♻','Corbeille',self.trash_page),('◇','Jeux & applis',self.games),('✦','Nettoyage',self.clean),('◈','Détective stockage',self.storage_detective),('✧','Rangement intelligent',self.smart_organizer_page),('▥','Carte du disque',self.disk_map_page),('◫','Sauvegardes',self.backup_page),('◎','Radar doublons',self.duplicates_page),('◎','Fichiers inutiles',self.cleanup_page),('⬇','Téléchargements',self.downloads_page),('★','Favoris',self.favorites_page),('◷','Anciennes versions',self.versions_page),('⬆','Mises à jour',self.updates_page),('⚙','Paramètres',self.settings_page),('⌨','Raccourcis',self.shortcuts_page)]:
    b=Gtk.Button();b.set_halign(Gtk.Align.FILL)
    b.connect('clicked',lambda _b,f=callback:f());sidebar.append(b)
    b.set_tooltip_text('Aller vers '+name);self.nav_buttons.append((b,icon,name))
@@ -551,6 +552,55 @@ class Window(Gtk.ApplicationWindow):
    except Exception:errors+=1
   self.dialog('Résultat',f'{done} fichier(s) mis à la corbeille · {errors} erreur(s).')
   self.duplicates_page()
+ def smart_organizer_page(self,*_):
+  self.clear();self.mark_page('Rangement intelligent');self.heading('RANGEMENT INTELLIGENT  ✧')
+  self.info('Prévisualisation des fichiers du dossier choisi. Rien ne bouge sans confirmation. Aucune suppression.')
+  folder=Gtk.Entry(text=str(self.downloads_dir()),hexpand=True);self.content.append(folder)
+  results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4);self.content.append(results)
+  self._organization_plan=[]
+  def preview(*_):
+   while child:=results.get_first_child():results.remove(child)
+   try:self._organization_plan=smart_tools.plan_organization(folder.get_text())
+   except Exception as exc:self.dialog('Analyse impossible',str(exc));return
+   self.info(f'{len(self._organization_plan)} déplacements proposés. Vérifie les chemins ci-dessous.')
+   for source,target in self._organization_plan[:50]:results.append(Gtk.Label(label=source.name+'  →  '+target.parent.name+'/',xalign=0))
+  self.btn(self.content,'Analyser et prévisualiser',preview)
+  def apply(*_):
+   plan=list(self._organization_plan)
+   if plan:self.dialog('Confirmer les déplacements ?',f'{len(plan)} fichiers seront déplacés dans des sous-dossiers. Aucun fichier existant ne sera écrasé.',lambda:self.perform(lambda:smart_tools.apply_organization(plan),'Rangement terminé'))
+  self.btn(self.content,'Confirmer les déplacements prévisualisés',apply)
+ def disk_map_page(self,*_):
+  self.clear();self.mark_page('Carte du disque');self.heading('CARTE DU DISQUE  ▥')
+  self.info('Répartition de la taille des fichiers par dossier. Lecture seule, limitée à 20 000 fichiers.')
+  folder=Gtk.Entry(text=str(HOME),hexpand=True);self.content.append(folder)
+  results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=7);self.content.append(results)
+  def scan(*_):
+   while child:=results.get_first_child():results.remove(child)
+   try:data,count,limited=smart_tools.disk_map(folder.get_text())
+   except Exception as exc:self.dialog('Analyse impossible',str(exc));return
+   total=sum(size for _,size in data)
+   results.append(Gtk.Label(label=f'{count} fichiers analysés'+(' (résultat partiel)' if limited else ''),xalign=0))
+   for name,size in data[:30]:
+    results.append(Gtk.Label(label=f'{name} — {size/1024/1024:.1f} Mo',xalign=0))
+    bar=Gtk.ProgressBar(fraction=size/total if total else 0);results.append(bar)
+  self.btn(self.content,'Afficher la répartition',scan)
+ def backup_page(self,*_):
+  self.clear();self.mark_page('Sauvegardes');self.heading('COFFRE DE SAUVEGARDE  ◫')
+  self.info('Copie uniquement les fichiers absents de la destination. Les sauvegardes existantes ne sont jamais écrasées ni effacées.')
+  self.info('Choisis un dossier source et un autre dossier de destination (disque externe recommandé).')
+  source=Gtk.Entry(text=str(HOME/'Documents'),hexpand=True);self.content.append(source)
+  destination=Gtk.Entry(placeholder_text='Chemin du dossier de sauvegarde',hexpand=True);self.content.append(destination)
+  status=Gtk.Label(label='Aucune analyse lancée.',xalign=0,wrap=True);self.content.append(status)
+  self._backup_plan=[]
+  def preview(*_):
+   try:self._backup_plan,count,limited=smart_tools.plan_backup(source.get_text(),destination.get_text())
+   except Exception as exc:self.dialog('Sauvegarde impossible',str(exc));return
+   status.set_text(f'{count} fichiers inspectés, {len(self._backup_plan)} nouveaux ou modifiés. '+('Analyse partielle.' if limited else '')+' Les fichiers déjà présents ne seront pas écrasés.')
+  self.btn(self.content,'Comparer les dossiers',preview)
+  def apply(*_):
+   plan=list(self._backup_plan)
+   if plan:self.dialog('Créer la sauvegarde ?',f'Copier les fichiers absents parmi {len(plan)} candidats ? Les fichiers existants seront ignorés.',lambda:self.perform(lambda:smart_tools.apply_backup(plan),'Sauvegarde terminée'))
+  self.btn(self.content,'Confirmer la copie sans écrasement',apply)
  def storage_detective(self,*_):
   """Read-only, bounded large-file inventory, on Linux and Windows."""
   self.clear();self.mark_page('Détective stockage');self.heading('DÉTECTIVE DE STOCKAGE  ◈')
