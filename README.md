@@ -72,6 +72,14 @@ La version Windows est encore **expérimentale** : elle est compilée automatiqu
 - Les mises à jour Linux sont téléchargées avec votre accord ; une installation peut nécessiter un mot de passe administrateur.
 - **Aucun dépôt APT officiel ni mise à jour automatique système n'est fourni pour le moment.**
 
+## 🚀 Trois idées pour les prochaines grandes versions
+
+1. **Rangement intelligent, mais sous contrôle** : l'application propose où classer les fichiers (Documents, Images, Vidéos, Archives), montre un aperçu précis de chaque déplacement et n'agit qu'après confirmation. Possibilité d'annuler les déplacements.
+2. **Carte du disque interactive** : une vue graphique des dossiers qui occupent le plus de place, avec zoom, filtres et accès direct aux fichiers volumineux. L'analyse reste locale et en lecture seule.
+3. **Coffre de sauvegarde et restauration** : comparer deux dossiers ou disques, détecter ce qui a changé, préparer une copie de sauvegarde, puis restaurer des fichiers individuellement après vérification.
+
+Ces trois fonctionnalités sont des **projets**, pas des fonctions déjà disponibles. La priorité est la sécurité des fichiers et les tests sur Linux et Windows.
+
 ## 🛠️ Pour contribuer
 
 Sources principales : `app.py` (Python / GTK4), `windows/app_windows.py` (adaptation Windows), `packaging/` (paquet Debian), `tests/` (tests automatisés).
