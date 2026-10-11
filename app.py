@@ -558,7 +558,11 @@ class Window(Gtk.ApplicationWindow):
    self.btn(tools,label,callback)
   self.info('F11 : plein écran • Échap : quitter le plein écran • Ctrl+2 : téléchargements')
  def files(self,*_):
-  self.clear();self.mark_page('Fichiers');self.heading('EXPLORATEUR  ▣')
+  self.clear();self.mark_page('Fichiers')
+  self.page_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.NEVER)
+  self.content.set_vexpand(True)
+  title=Gtk.Label(label='📁 EXPLORATEUR DE FICHIERS',xalign=0)
+  title.add_css_class('file-name');self.content.append(title)
   toolbar=Gtk.FlowBox();toolbar.set_selection_mode(Gtk.SelectionMode.NONE);toolbar.set_max_children_per_line(4);toolbar.set_row_spacing(5);toolbar.set_column_spacing(6);toolbar.add_css_class('file-toolbar');self.content.append(toolbar)
   self.btn(toolbar,'← Retour',self.go_back)
   self.btn(toolbar,'→ Suivant',self.go_forward)
@@ -586,12 +590,12 @@ class Window(Gtk.ApplicationWindow):
   for label,key in [('Tous','all'),('Dossiers','folders'),('Images','images'),('Documents','documents')]:
    self.btn(filters,label,lambda _b,k=key:self.set_file_filter(k)).add_css_class('file-filter')
   self.count_label=Gtk.Label(xalign=0);self.count_label.add_css_class('file-count');self.content.append(self.count_label)
-  scroll=Gtk.ScrolledWindow(vexpand=True);self.content.append(scroll)
+  scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True);scroll.set_min_content_height(240);self.content.append(scroll)
   self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions());scroll.set_child(self.listbox)
   actions=Gtk.Box(spacing=6);actions.add_css_class('file-actions');self.content.append(actions);self.file_actions=actions
   for label,cb in [('Ouvrir',self.open_selected),('📋 Copier chemin',self.copy_selected_path),('Copier vers…',lambda *_:self.choose_destination(False)),('Déplacer vers…',lambda *_:self.choose_destination(True)),('Renommer',self.rename),('Corbeille',self.trash),('Supprimer définitivement',self.delete)]:self.btn(actions,label,cb)
   actions.get_last_child().add_css_class('danger-action');actions.set_visible(False)
-  self.info('Sélectionne un élément pour afficher les actions. Double-clique pour ouvrir.  •  Ctrl+F rechercher  •  Alt+← retour  •  Ctrl+R actualiser')
+  
   self.refresh()
  def toggle_file_view(self,*_):
   self.file_view='grid' if self.file_view=='list' else 'list';self.save_prefs();self.refresh()
