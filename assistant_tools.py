@@ -50,5 +50,13 @@ def confirm_rename(source, target):
     source, expected = preview_rename(source, pathlib.Path(target).name)
     if expected != pathlib.Path(target):
         raise ValueError("La destination a changé.")
-    source.rename(expected)
+    if not source.is_file() or source.is_symlink():
+        raise ValueError("Le renommage guidé accepte uniquement les fichiers ordinaires.")
+    # Exclusive hard-link creation prevents overwriting a newly created target.
+    os.link(source, expected, follow_symlinks=False)
+    try:
+        source.unlink()
+    except OSError:
+        expected.unlink()
+        raise
     return expected
