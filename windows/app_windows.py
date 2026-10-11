@@ -107,6 +107,18 @@ def win_launch_beta(self, script, version):
                 "Les anciennes versions Linux ne peuvent pas être lancées dans l'exécutable Windows. "
                 "Elles sont conservées uniquement pour consultation dans les archives.")
 
+
+def win_updates_page(self, *_):
+    self.clear()
+    self.mark_page("Mises à jour")
+    self.heading("MISES À JOUR WINDOWS  ⬆")
+    self.info("Version de l'application : " + core.VERSION)
+    self.info("Les paquets Ubuntu .deb ne sont pas compatibles avec Windows.")
+    self.info("Télécharge une archive Windows uniquement lorsqu'une version Windows est disponible sur GitHub.")
+    self.btn(self.content, "Voir les versions Windows sur GitHub",
+             lambda *_: os.startfile("https://github.com/eliott39pro39-png/gestion-des-stockage/releases"))
+
+core.Window.updates_page = win_updates_page
 core.Window.prompt = win_prompt
 core.Window.refresh = win_refresh
 core.Window.launch_beta = win_launch_beta
