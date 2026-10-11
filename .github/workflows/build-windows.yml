@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'app.py'
+      - 'smart_tools.py'
       - 'mountain-bg.png'
       - 'windows/**'
       - 'versions/**'
@@ -35,7 +36,7 @@ jobs:
             zip
       - name: Check Windows Python syntax
         run: |
-          python -m py_compile app.py windows/app_windows.py
+          python -m py_compile app.py smart_tools.py windows/app_windows.py
           find versions -name app.py -exec python -m py_compile {} +
       - name: Verify storage detective and Windows update adapter
         run: |
