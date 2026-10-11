@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex
+import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex, hashlib
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
@@ -462,6 +462,84 @@ class Window(Gtk.ApplicationWindow):
  def reset_prefs(self):
   self.prefs={};self.theme='system';self.accent='neon';self.show_hidden=False;self.background_style='aurora';self.density='comfortable';self.nav_style='icons';self.update_nav_labels()
   self.prefs['start_dir']=str(HOME);self.apply_theme();self.update_theme_label();self.save_prefs();self.settings_page()
+ def duplicates_page(self,*_):
+  self.clear();self.mark_page('Doublons');self.heading('RADAR DES DOUBLONS  ◈')
+  self.info('Analyse par contenu SHA-256. Aucun fichier sélectionné par défaut. Vérifie les chemins avant toute mise à la corbeille.')
+  bar=Gtk.Box(spacing=7);self.content.append(bar)
+  folder=Gtk.Entry(text=str(HOME),hexpand=True);bar.append(folder)
+  self.btn(bar,'Rechercher',lambda *_:self.start_duplicates(folder.get_text()))
+  self.btn(bar,'Annuler',lambda *_:getattr(self,'_duplicates_cancel',threading.Event()).set())
+  self.duplicate_status=Gtk.Label(label='Choisis un dossier.',xalign=0,wrap=True);self.content.append(self.duplicate_status)
+  self.duplicate_results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5);self.content.append(self.duplicate_results)
+  self.duplicate_checks=[]
+  self.btn(self.content,'Mettre la sélection à la corbeille',self.trash_duplicates)
+ def start_duplicates(self,path):
+  if getattr(self,'_duplicates_busy',False):return
+  root=pathlib.Path(path).expanduser()
+  if not root.is_dir():self.duplicate_status.set_text('Dossier inaccessible.');return
+  self._duplicates_busy=True;self._duplicates_cancel=threading.Event()
+  self.duplicate_status.set_text('Analyse en cours, 30 000 fichiers maximum…')
+  while child:=self.duplicate_results.get_first_child():self.duplicate_results.remove(child)
+  self.duplicate_checks=[]
+  def worker():
+   sizes={};pending=[root];count=0;errors=0
+   while pending and count<30000 and not self._duplicates_cancel.is_set():
+    try:
+     with os.scandir(pending.pop()) as entries:
+      for item in entries:
+       if self._duplicates_cancel.is_set() or count>=30000:break
+       try:
+        if item.is_symlink():continue
+        if item.is_dir(follow_symlinks=False):pending.append(pathlib.Path(item.path))
+        elif item.is_file(follow_symlinks=False):
+         st=item.stat(follow_symlinks=False);count+=1
+         if st.st_size:sizes.setdefault(st.st_size,[]).append(pathlib.Path(item.path))
+       except OSError:errors+=1
+    except OSError:errors+=1
+   hashes={}
+   for size,paths in sizes.items():
+    if self._duplicates_cancel.is_set():break
+    if len(paths)<2:continue
+    for p in paths:
+     if self._duplicates_cancel.is_set():break
+     try:
+      if p.is_symlink() or not p.is_file() or p.stat().st_size!=size:continue
+      h=hashlib.sha256()
+      with p.open('rb') as stream:
+       while not self._duplicates_cancel.is_set():
+        chunk=stream.read(1048576)
+        if not chunk:break
+        h.update(chunk)
+      if not self._duplicates_cancel.is_set():hashes.setdefault((size,h.digest()),[]).append(p)
+     except OSError:errors+=1
+   groups=[(key[0],paths) for key,paths in hashes.items() if len(paths)>1]
+   GLib.idle_add(self.finish_duplicates,groups,count,errors,bool(pending) or count>=30000 or self._duplicates_cancel.is_set())
+  threading.Thread(target=worker,daemon=True).start()
+ def finish_duplicates(self,groups,count,errors,partial):
+  self._duplicates_busy=False
+  if self._active_page!='Doublons':return False
+  saving=sum(size*(len(paths)-1) for size,paths in groups)
+  self.duplicate_status.set_text(f'{count} fichiers analysés · {len(groups)} groupes · jusqu’à {saving/1048576:.1f} Mo récupérables · {errors} erreurs'+(' · résultats partiels' if partial else ''))
+  for size,paths in groups:
+   group=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=3);group.add_css_class('release-card')
+   group.append(Gtk.Label(label=f'{len(paths)} copies identiques · {size/1048576:.1f} Mo chacune',xalign=0))
+   for p in paths:
+    check=Gtk.CheckButton(label=str(p));group.append(check);self.duplicate_checks.append((check,p))
+   self.duplicate_results.append(group)
+  return False
+ def trash_duplicates(self,*_):
+  chosen=[p for check,p in getattr(self,'duplicate_checks',[]) if check.get_active()]
+  if not chosen:self.dialog('Aucune sélection','Coche uniquement les copies à mettre à la corbeille.');return
+  self.dialog('Confirmer la mise à la corbeille',f'{len(chosen)} fichier(s) sélectionné(s). Vérifie que tu conserves au moins une copie de chaque document.',lambda:self.execute_trash_duplicates(chosen))
+ def execute_trash_duplicates(self,paths):
+  done=0;errors=0
+  for p in paths:
+   try:
+    if p.is_symlink() or not p.is_file():continue
+    Gio.File.new_for_path(str(p)).trash(None);done+=1
+   except Exception:errors+=1
+  self.dialog('Résultat',f'{done} fichier(s) mis à la corbeille · {errors} erreur(s).')
+  self.duplicates_page()
  def storage_detective(self,*_):
   """Read-only, bounded large-file inventory, on Linux and Windows."""
   self.clear();self.mark_page('Détective stockage');self.heading('DÉTECTIVE DE STOCKAGE  ◈')
