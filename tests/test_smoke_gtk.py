@@ -6,6 +6,7 @@ from gi.repository import GLib
 import app
 
 application = app.App()
+application.register(None)
 application.do_activate()
 window = application.get_windows()[0]
 application.do_activate()
