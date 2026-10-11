@@ -8,7 +8,7 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 pkg="$work/pkg"
 mkdir -p "$pkg/DEBIAN" "$pkg/usr/share/gestion-stockage" "$pkg/usr/bin" "$pkg/usr/share/applications" "$pkg/usr/share/icons/hicolor/scalable/apps"
-cp app.py assistant_tools.py mountain-bg.png "$pkg/usr/share/gestion-stockage/"
+cp app.py assistant_tools.py assistant_history.py mountain-bg.png "$pkg/usr/share/gestion-stockage/"
 cp packaging/gestion-stockage.svg "$pkg/usr/share/icons/hicolor/scalable/apps/gestion-stockage.svg"
 if [[ -d versions ]]; then cp -R versions "$pkg/usr/share/gestion-stockage/"; fi
 if [[ -f logo.png ]]; then cp logo.png "$pkg/usr/share/gestion-stockage/"; fi

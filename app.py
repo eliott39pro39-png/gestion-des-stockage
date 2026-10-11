@@ -2,6 +2,7 @@
 import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, re, shlex, hashlib
 from gi.repository import Gtk, Gio, GLib, Gdk
 import assistant_tools
+import assistant_history
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
 VERSION='27.5.3'
@@ -715,7 +716,13 @@ class Window(Gtk.ApplicationWindow):
   results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=9)
   results.set_margin_top(12);results.set_margin_bottom(12)
   scroller.set_child(results)
-  def speak(message,user=False):
+  history=assistant_history.load_history()
+  if not isinstance(history,list):history=[]
+  def speak(message,user=False,save=True):
+   if save:
+    history.append({'user':bool(user),'message':str(message)})
+    try:assistant_history.save_history(history)
+    except OSError:pass
    row=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
    row.set_halign(Gtk.Align.END if user else Gtk.Align.START)
    label=Gtk.Label(label=('🧑  ' if user else '🤖  ')+message,xalign=0,wrap=True,selectable=True)
@@ -790,7 +797,19 @@ class Window(Gtk.ApplicationWindow):
    speak('🤔 Je ne comprends pas encore cette demande. Essaie « Trouve War Thunder », « Renomme test.txt » ou « Doublons » ! 💙')
   self.btn(composer,'➤ Envoyer',send)
   message_entry.connect('activate',send)
-  speak('Salut !! 👋💙 Dis-moi quel fichier tu cherches ! Par exemple : « Trouve War Thunder » 🔎')
+  if history:
+   for item in history[-500:]:
+    if isinstance(item,dict) and isinstance(item.get('message'),str):speak(item['message'],bool(item.get('user')),False)
+  else:speak('Salut !! 👋💙 Dis-moi quel fichier tu cherches ! Par exemple : « Trouve War Thunder » 🔎')
+  def erase_history(*_):
+   def confirmed():
+    history.clear()
+    try:assistant_history.clear_history()
+    except OSError:pass
+    while results.get_first_child():results.remove(results.get_first_child())
+    speak('💙 Historique effacé. Nouvelle conversation !')
+   self.dialog('Effacer la conversation ?', 'Tous les messages enregistrés sur cet ordinateur seront supprimés.', confirmed)
+  self.btn(self.content,'🗑️ Effacer l’historique du chat',erase_history)
   self.btn(self.content,'🔎 Rechercher un fichier ou dossier',lambda *_:find('search'))
   self.btn(self.content,'✏️ Renommer un fichier',lambda *_:find('rename'))
   self.btn(self.content,'📁 Ranger mes fichiers',lambda *_:self.dialog('Rangement','Cette fonction arrive dans une prochaine bêta. Aucun fichier modifié.'))
