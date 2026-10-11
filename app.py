@@ -708,6 +708,37 @@ class Window(Gtk.ApplicationWindow):
   self.file_filter=key;self.refresh()
  def update_file_actions(self):
   if hasattr(self,'file_actions'):self.file_actions.set_visible(self.selected() is not None)
+ def organizer_page(self,*_):
+  self.clear();self.mark_page('Rangement');self.heading('📁 RANGEMENT INTELLIGENT')
+  self.info('Prévisualise les déplacements avant de les autoriser. Aucun fichier supprimé. Les sous-dossiers restent intacts.')
+  folder=Gtk.Entry(text=str(self.downloads_dir()),hexpand=True);self.content.append(folder)
+  preview=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=7);self.content.append(preview)
+  state={'plan':[],'done':[]}
+  def reset():
+   while preview.get_first_child():preview.remove(preview.get_first_child())
+  def prepare(*_):
+   reset();state['plan']=[]
+   try:state['plan']=smart_organizer.plan(folder.get_text())
+   except (OSError,ValueError) as exc:self.info(str(exc));return
+   moves=state['plan']
+   if not moves:self.info('🎉 Aucun fichier à ranger ici.');return
+   self.info(f'🔎 {len(moves)} fichier(s) à ranger. Vérifie la liste :')
+   for source,target in moves:
+    line=Gtk.Label(label=f'📄 {source.name}  →  📁 {target.parent.name}/',xalign=0,wrap=True)
+    preview.append(line)
+   self.btn(preview,'✅ Confirmer les déplacements',lambda *_:self.dialog('Ranger ces fichiers ?',f'{len(moves)} fichiers seront déplacés dans des sous-dossiers. Tu pourras annuler immédiatement.',apply))
+  def apply():
+   try:state['done']=smart_organizer.execute(state['plan'])
+   except OSError as exc:self.dialog('Erreur de rangement',str(exc));return
+   reset();self.info(f'🎉 {len(state["done"])} fichier(s) rangé(s).')
+   if state['done']:self.btn(preview,'↩️ Annuler ce rangement',revert)
+  def revert(*_):
+   try:restored=smart_organizer.undo(state['done'])
+   except OSError as exc:self.dialog('Annulation impossible',str(exc));return
+   reset();self.info(f'↩️ {len(restored)} fichier(s) remis à leur place.')
+   state['done']=[]
+  self.btn(self.content,'🔎 Prévisualiser le rangement',prepare)
+  self.info('Catégories : Images, Vidéos, Musique, Documents et Archives. Les fichiers inconnus sont laissés en place.')
  def assistant_page(self,*_):
   self.clear();self.mark_page('Assistant');self.heading('DISCUTE AVEC TON ASSISTANT  🤖')
   self.info('Salut !! 👋💙 Écris-moi ce que tu cherches. Je te répondrai comme dans une conversation ! 🤖')
