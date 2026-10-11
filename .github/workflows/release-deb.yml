@@ -69,8 +69,8 @@ jobs:
             echo "Release v27.3.0 already exists; keeping published assets unchanged."
           else
             gh release create "v27.3.0" dist/gestion-stockage-27.3.0-all.deb \
-              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.3.0 — Linux" \\
-              --notes "Version Linux 27.3.0 : transition discrète entre les pages, annulation des animations lors d'une navigation rapide et correctifs du rafraîchissement de l'explorateur. Le paquet Debian met à niveau le paquet gestion-stockage existant. Compilation et structure du paquet validées automatiquement ; interface graphique à tester sur Ubuntu." \\
+              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.3.0 — Linux" \
+              --notes "Version Linux 27.3.0 : transition discrète entre les pages, annulation des animations lors d'une navigation rapide et correctifs du rafraîchissement de l'explorateur. Le paquet Debian met à niveau le paquet gestion-stockage existant. Compilation et structure du paquet validées automatiquement ; interface graphique à tester sur Ubuntu." \
               --latest
           fi
       - name: Publish release only for explicit version tags
