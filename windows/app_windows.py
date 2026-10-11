@@ -12,7 +12,7 @@ import tempfile
 import shutil
 import importlib.util
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(getattr(sys, "_MEIPASS", pathlib.Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location("gestion_stockage_linux_core", ROOT / "app.py")
 core = importlib.util.module_from_spec(spec)
@@ -22,7 +22,7 @@ from gi.repository import Gtk, Gio
 from send2trash import send2trash
 
 core.APP = "Gestion de stockage Windows"
-core.CONFIG = pathlib.Path(os.environ.get("APPDATA", pathlib.Path.home())) / "GestionStockageWindows" / "settings.json"
+core.CONFIG = pathlib.Path(os.environ.get("APPDATA") or (pathlib.Path.home() / "AppData" / "Roaming")) / "GestionStockageWindows" / "settings.json"
 
 def win_trash(self, *_):
     p = self.selected()
@@ -83,6 +83,33 @@ def win_clean(self, *_):
         self.btn(self.content, "📂 Inspecter le dossier temporaire", lambda *_: self.open_dir(cache))
     self.info("Pour le nettoyage du système, utilise les paramètres de stockage de Windows.")
 
+
+# Windows filenames cannot contain these characters (unlike Linux).
+_original_prompt = core.Window.prompt
+def win_prompt(self, title, description, default, callback):
+    def checked(name):
+        if any(c in name for c in '<>:"/\\\\|?*') or name.endswith((' ', '.')) or name.upper().split('.')[0] in {
+            'CON', 'PRN', 'AUX', 'NUL', *(f'COM{i}' for i in range(1, 10)), *(f'LPT{i}' for i in range(1, 10))
+        }:
+            self.dialog("Nom invalide", "Ce nom n'est pas autorisé sous Windows.")
+            return
+        callback(name)
+    return _original_prompt(self, title, description, default, checked)
+
+_original_refresh = core.Window.refresh
+def win_refresh(self, *args, **kwargs):
+    if getattr(self, '_active_page', None) != 'Fichiers':
+        return
+    return _original_refresh(self, *args, **kwargs)
+
+def win_launch_beta(self, script, version):
+    self.dialog("Ancienne version non disponible",
+                "Les anciennes versions Linux ne peuvent pas être lancées dans l'exécutable Windows. "
+                "Elles sont conservées uniquement pour consultation dans les archives.")
+
+core.Window.prompt = win_prompt
+core.Window.refresh = win_refresh
+core.Window.launch_beta = win_launch_beta
 core.Window.trash = win_trash
 core.Window.trash_page = win_trash_page
 core.Window.games = win_games
