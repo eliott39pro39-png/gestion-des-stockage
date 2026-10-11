@@ -470,27 +470,34 @@ class Window(Gtk.ApplicationWindow):
   controls=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(controls)
   folder=Gtk.Entry(text=str(HOME),hexpand=True);controls.append(folder)
   self.btn(controls,'Analyser',lambda *_:self.start_storage_scan(folder.get_text()))
+  self.btn(controls,'Annuler',lambda *_:self.cancel_storage_scan())
   self.storage_scan_status=Gtk.Label(label='Choisis un dossier et lance l’analyse.',xalign=0,wrap=True)
   self.content.append(self.storage_scan_status)
   self.storage_scan_results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6)
   self.content.append(self.storage_scan_results)
+ def cancel_storage_scan(self):
+  if getattr(self,'_storage_scanning',False):
+   self._storage_cancel.set()
+   self.storage_scan_status.set_text('Annulation demandée…')
  def start_storage_scan(self,raw_path):
   if getattr(self,'_storage_scanning',False):
    self.storage_scan_status.set_text('Une analyse est déjà en cours.');return
   root=pathlib.Path(raw_path).expanduser()
   if not root.is_dir():
    self.storage_scan_status.set_text('Dossier introuvable ou inaccessible.');return
+  self._storage_cancel=threading.Event()
   self._storage_scanning=True
   self.storage_scan_status.set_text('Analyse en cours (maximum 30 000 fichiers)…')
   while child:=self.storage_scan_results.get_first_child():self.storage_scan_results.remove(child)
   def worker():
    import heapq
    largest=[];count=0;errors=0;total=0;pending=[root]
-   while pending and count<30000:
+   while pending and count<30000 and not self._storage_cancel.is_set():
     directory=pending.pop()
     try:
      with os.scandir(directory) as entries:
       for item in entries:
+       if self._storage_cancel.is_set():break
        try:
         if item.is_symlink():continue
         if item.is_dir(follow_symlinks=False):
@@ -504,16 +511,16 @@ class Window(Gtk.ApplicationWindow):
        except (OSError,PermissionError):errors+=1
     except (OSError,PermissionError):errors+=1
    results=sorted(largest,reverse=True)
-   GLib.idle_add(self.finish_storage_scan,root,results,count,total,errors,bool(pending))
+   GLib.idle_add(self.finish_storage_scan,root,results,count,total,errors,bool(pending) or count>=30000,self._storage_cancel.is_set())
   threading.Thread(target=worker,daemon=True).start()
- def finish_storage_scan(self,root,results,count,total,errors,limited):
+ def finish_storage_scan(self,root,results,count,total,errors,limited,cancelled=False):
   self._storage_scanning=False
   if self._active_page!='Détective stockage':return False
   def pretty(n):
    for unit in ('o','Ko','Mo','Go','To'):
     if n<1024 or unit=='To':return f'{n:.1f} {unit}'
     n/=1024
-  suffix=' — limite de 30 000 fichiers atteinte, résultats partiels' if limited else ''
+  suffix=' — analyse annulée, résultats partiels' if cancelled else (' — limite de 30 000 fichiers atteinte, résultats partiels' if limited else '')
   self.storage_scan_status.set_text(f'{count} fichiers analysés · {pretty(total)} au total · {errors} accès impossibles'+suffix)
   if not results:self.info('Aucun fichier trouvé dans ce dossier.')
   for size,path in results:
