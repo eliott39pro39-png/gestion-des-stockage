@@ -59,7 +59,7 @@ jobs:
         run: |
           cp -r windows/legacy dist/GestionStockage-Windows/
           cd dist
-          7z a -tzip GestionStockage-Windows-27.2.1-preview.zip GestionStockage-Windows
+          python -m zipfile -c GestionStockage-Windows-27.2.1-preview.zip GestionStockage-Windows
       - uses: actions/upload-artifact@v4
         with:
           name: GestionStockage-Windows-27.2.1-preview
