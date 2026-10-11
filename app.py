@@ -428,23 +428,23 @@ class Window(Gtk.ApplicationWindow):
    except Exception as exc:self.dialog('Ouverture impossible',str(exc))
  def versions_page(self,*_):
   self.clear();self.mark_page('Anciennes versions');self.heading('ANCIENNES VERSIONS  ◷')
-  self.info('Les versions bêta et les versions bugguées sont séparées. Les notes de chaque mise à jour figurent ici et dans Téléchargements.')
+  self.info('Retrouve les anciennes éditions conservées dans le paquet. Les versions récentes sont ajoutées automatiquement à la construction.')
   archive=pathlib.Path(__file__).resolve().parent/'versions'
-  self.heading('VERSIONS BÊTA')
-  for version in ('27.1','26.9','26.7','26.6','26.5.1','26.5','26.4','26.3','26.2','2.1','2.0','1.0'):
-   script=archive/version/'app.py'
-   if script.is_file():
+  known_buggy={'26.8','26.8.2','26.8.3','26.8.4','26.8.5','26.8.6'}
+  def version_key(name):
+   return tuple(int(part) for part in name.split('.'))
+  available=sorted((p for p in archive.iterdir() if p.is_dir() and re.fullmatch(r'[0-9]+(?:\\.[0-9]+)*',p.name) and (p/'app.py').is_file()),key=lambda p:version_key(p.name),reverse=True) if archive.is_dir() else []
+  for heading,items in [('VERSIONS PRÉCÉDENTES',[p for p in available if p.name not in known_buggy]),('VERSIONS AVEC PROBLÈMES CONNUS ⚠',[p for p in available if p.name in known_buggy])]:
+   self.heading(heading)
+   if not items:self.info('Aucune version archivée dans cette catégorie.')
+   for directory in items:
+    version=directory.name;script=directory/'app.py'
     row=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5);row.add_css_class('release-card');self.content.append(row)
-    row.append(Gtk.Label(label='Version '+version+' — '+dict(RELEASES).get(version,['Archive bêta'])[0],hexpand=True,xalign=0,wrap=True))
-    self.btn(row,'Ouvrir ↗',lambda _b,p=script,v=version:self.launch_beta(p,v))
-  self.heading('VERSIONS BUGGUÉES  ⚠')
-  self.info('Ces éditions ont rencontré des problèmes de graphiques ou de fenêtre. Ne les utilise pas pour des fichiers importants.')
-  for version in ('26.8','26.8.2','26.8.3','26.8.4','26.8.5','26.8.6'):
-   script=archive/version/'app.py'
-   if script.is_file():
-    row=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5);row.add_css_class('release-card');self.content.append(row)
-    row.append(Gtk.Label(label='Version '+version+' — bugguée • '+dict(RELEASES).get(version,['Problèmes connus'])[0],hexpand=True,xalign=0,wrap=True))
-    self.btn(row,'Ouvrir ⚠',lambda _b,p=script,v=version:self.dialog('Version bugguée','Cette version a eu des problèmes connus. Les graphiques ont été retirés de cette copie. Ouvrir quand même ?',lambda:self.launch_beta(p,v)))
+    description=dict(RELEASES).get(version,['Archive locale'])[0]
+    row.append(Gtk.Label(label='Version '+version+' — '+description,hexpand=True,xalign=0,wrap=True))
+    if version in known_buggy:
+     self.btn(row,'Ouvrir ⚠',lambda _b,p=script,v=version:self.dialog('Version avec problèmes connus','Cette version a rencontré des problèmes. Ouvrir quand même ?',lambda:self.launch_beta(p,v)))
+    else:self.btn(row,'Ouvrir ↗',lambda _b,p=script,v=version:self.launch_beta(p,v))
  def launch_beta(self,script,version):
   try:
    subprocess.Popen([sys.executable,str(script)],env={**os.environ,'GESTION_STOCKAGE_ARCHIVE_CHILD':'1'},start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
