@@ -727,7 +727,7 @@ class Window(Gtk.ApplicationWindow):
    threading.Thread(target=worker,daemon=True).start()
   def show_found(mode,found,partial):
    status.set_text(f'{len(found)} résultat(s)'+(' — recherche partielle (limite de sécurité)' if partial else ''))
-   if not found:self.info('Aucun résultat. Essaie un autre nom ou dossier.')
+   if not found:results.append(Gtk.Label(label='Aucun résultat. Essaie un autre nom ou dossier.',xalign=0))
    for path in found:
     line=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=7);results.append(line)
     label=Gtk.Label(label=str(path),xalign=0,wrap=True,hexpand=True);line.append(label)
