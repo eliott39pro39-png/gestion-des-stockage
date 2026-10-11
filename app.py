@@ -724,7 +724,7 @@ class Window(Gtk.ApplicationWindow):
    label.set_margin_start(12);label.set_margin_end(12)
    label.add_css_class('card')
    row.append(label);results.append(row)
-   return row
+   return False
   composer=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(composer)
   message_entry=Gtk.Entry(placeholder_text='💬 Ex : Trouve War Thunder',hexpand=True)
   composer.append(message_entry)
