@@ -22,6 +22,7 @@ from gi.repository import Gtk, Gio
 from send2trash import send2trash
 
 core.APP = "Gestion de stockage Windows"
+core.HOME = pathlib.Path(os.environ.get("USERPROFILE") or pathlib.Path.home())
 core.CONFIG = pathlib.Path(os.environ.get("APPDATA") or (pathlib.Path.home() / "AppData" / "Roaming")) / "GestionStockageWindows" / "settings.json"
 
 def win_trash(self, *_):
