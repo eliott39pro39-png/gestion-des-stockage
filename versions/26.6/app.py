@@ -184,6 +184,8 @@ class Window(Gtk.ApplicationWindow):
   self.btn(self.content,'📋 À propos et nouveautés',self.about_page)
   self.btn(self.content,'Réinitialiser les préférences',lambda *_:self.dialog('Réinitialiser les paramètres ?', 'Tes fichiers personnels ne seront pas touchés.',self.reset_prefs))
  def versions_page(self,*_):
+  if os.environ.get('GESTION_STOCKAGE_ARCHIVE_CHILD')=='1':
+   self.dialog('Navigation désactivée','Les anciennes versions ne peuvent pas ouvrir d’autres anciennes versions.');return
   self.clear();self.heading('ARCHIVES BÊTA  ◷')
   self.info('Teste une ancienne version sans remplacer la 26.6. Chaque version a ses propres paramètres.')
   self.info('Attention : les versions historiques peuvent contenir des bugs. Teste-les sur des fichiers sans importance.')
@@ -197,6 +199,7 @@ class Window(Gtk.ApplicationWindow):
     self.btn(row,'Ouvrir ↗',lambda _b,p=script,v=version:self.launch_beta(p,v))
   self.info('Les anciennes versions ne sont pas mises à jour et ne doivent pas servir à supprimer des fichiers importants.')
  def launch_beta(self,script,version):
+  if os.environ.get('GESTION_STOCKAGE_ARCHIVE_CHILD')=='1':return
   try:
    subprocess.Popen([sys.executable,str(script)],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
    self.notify('Version bêta lancée','Gestion de stockage '+version)
