@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse
+import os, sys, shutil, subprocess, pathlib, json, mimetypes, datetime, threading, urllib.parse, urllib.request, hashlib, tempfile, re
 from gi.repository import Gtk, Gio, GLib, Gdk
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.3.0'
+VERSION='27.4.0'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
@@ -62,7 +62,7 @@ PALETTES = {
  'blue':'#287df0', 'purple':'#8059e8', 'green':'#168a70', 'cyan':'#078aaf', 'neon':'#00aaff'
 }
 
-RELEASES = [('27.2', ['Page Favoris dédiée', 'Copie du chemin du dossier courant', 'Accès au dossier parent', 'Raccourci F5 pour actualiser', 'Ctrl+4 pour les Favoris', 'Ctrl+5 pour les Paramètres', 'Ctrl+6 pour les Raccourcis']), ('27.1', ['Copier le chemin complet du fichier sélectionné', 'Retirer un dossier des favoris', 'Nouvel onglet Raccourcis clavier']), ('27.0.3', ['Fenêtre adaptative avec défilement de secours', 'Bannières panoramiques sur les autres pages', 'Boutons et réglages réorganisés']), ('27.0.2', ['Fond panoramique montagneux sur l’accueil', 'Barres d’outils adaptatives et correction de largeur minimale', 'Nouvelle présentation inspirée de la maquette']), ('27.0.1', ['Interface inspirée du tableau de bord néon', 'Correction du défilement et des contraintes de largeur', 'Accueil avec cartes de stockage et accès rapides']), ('27.0', ['Nouvel onglet Téléchargements et historique détaillé des mises à jour', 'Nouvelle identité visuelle et icône', 'Navigation fluide, accès rapides et raccourcis supplémentaires']), ('26.9', ['Retour à la base stable 26.7 sans graphiques', 'Versions bêta et bugguées séparées', 'Fluid Edition : transitions légères et personnalisation']), ('26.8.6', ['Tentative de calcul progressif des graphiques — édition bugguée']), ('26.8.5', ['Catégorie Versions bugguées et avertissement avant lancement']), ('26.8.4', ['Correctifs d’affichage et export CSV — édition bugguée']), ('26.8.3', ['Graphiques circulaires et barres — édition bugguée']), ('26.8.2', ['Correctifs de fenêtre et ouverture de dossiers — édition bugguée']), ('26.8', ['Graphiques de stockage redessinés — édition bugguée']), ('26.7', ['Explorateur simplifié, filtres, actions contextuelles']), ('26.6', ['Tri des fichiers, compteur et icônes']), ('26.5.1', ['Nettoyage prévisualisé et corrections de couleurs']), ('26.5', ['Archives des anciennes versions et améliorations']), ('26.4', ['Thèmes, densité et styles du menu']), ('26.3', ['Personnalisation et interface améliorée']), ('26.2', ['Gestion du stockage et de la navigation']), ('2.1', ['Améliorations de l’explorateur']), ('2.0', ['Nouvelle interface']), ('1.0', ['Première édition'])]
+RELEASES = [('27.4.0', ['Détection des mises à jour officielles GitHub', 'Téléchargement vérifié SHA-256', 'Installation avec confirmation et autorisation administrateur']), ('27.3.0', ['Transitions fluides entre les pages']), ('27.2', ['Page Favoris dédiée', 'Copie du chemin du dossier courant', 'Accès au dossier parent', 'Raccourci F5 pour actualiser', 'Ctrl+4 pour les Favoris', 'Ctrl+5 pour les Paramètres', 'Ctrl+6 pour les Raccourcis']), ('27.1', ['Copier le chemin complet du fichier sélectionné', 'Retirer un dossier des favoris', 'Nouvel onglet Raccourcis clavier']), ('27.0.3', ['Fenêtre adaptative avec défilement de secours', 'Bannières panoramiques sur les autres pages', 'Boutons et réglages réorganisés']), ('27.0.2', ['Fond panoramique montagneux sur l’accueil', 'Barres d’outils adaptatives et correction de largeur minimale', 'Nouvelle présentation inspirée de la maquette']), ('27.0.1', ['Interface inspirée du tableau de bord néon', 'Correction du défilement et des contraintes de largeur', 'Accueil avec cartes de stockage et accès rapides']), ('27.0', ['Nouvel onglet Téléchargements et historique détaillé des mises à jour', 'Nouvelle identité visuelle et icône', 'Navigation fluide, accès rapides et raccourcis supplémentaires']), ('26.9', ['Retour à la base stable 26.7 sans graphiques', 'Versions bêta et bugguées séparées', 'Fluid Edition : transitions légères et personnalisation']), ('26.8.6', ['Tentative de calcul progressif des graphiques — édition bugguée']), ('26.8.5', ['Catégorie Versions bugguées et avertissement avant lancement']), ('26.8.4', ['Correctifs d’affichage et export CSV — édition bugguée']), ('26.8.3', ['Graphiques circulaires et barres — édition bugguée']), ('26.8.2', ['Correctifs de fenêtre et ouverture de dossiers — édition bugguée']), ('26.8', ['Graphiques de stockage redessinés — édition bugguée']), ('26.7', ['Explorateur simplifié, filtres, actions contextuelles']), ('26.6', ['Tri des fichiers, compteur et icônes']), ('26.5.1', ['Nettoyage prévisualisé et corrections de couleurs']), ('26.5', ['Archives des anciennes versions et améliorations']), ('26.4', ['Thèmes, densité et styles du menu']), ('26.3', ['Personnalisation et interface améliorée']), ('26.2', ['Gestion du stockage et de la navigation']), ('2.1', ['Améliorations de l’explorateur']), ('2.0', ['Nouvelle interface']), ('1.0', ['Première édition'])]
 
 class Window(Gtk.ApplicationWindow):
  def __init__(self,app):
@@ -291,7 +291,11 @@ class Window(Gtk.ApplicationWindow):
   self.info('Tes fichiers téléchargés et les nouveautés de Gestion de stockage, au même endroit.')
   self.btn(self.content,'📁 Ouvrir mon dossier Téléchargements',lambda *_:self.open_dir(self.downloads_dir())).add_css_class('primary-action')
   self.heading('MISES À JOUR — HISTORIQUE')
-  self.info('Les mises à jour sont présentées ici pour information. Aucun téléchargement ni installation automatique.')
+  self.heading('VÉRIFIER LES MISES À JOUR')
+  self.info('Recherche des versions officielles GitHub. Une mise à jour nécessite ton accord et le mot de passe administrateur.')
+  self._update_status=Gtk.Label(label='Clique sur « Vérifier » pour rechercher une nouvelle version.',xalign=0,wrap=True)
+  self.content.append(self._update_status)
+  self.btn(self.content,'🔄 Vérifier les mises à jour',self.check_updates).add_css_class('primary-action')
   for version,changes in RELEASES:
    card=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5);card.add_css_class('release-card');self.content.append(card)
    title=Gtk.Label(label='Version '+version+('  •  Actuelle' if version==VERSION else ''),xalign=0);title.add_css_class('release-title');card.append(title)
@@ -306,6 +310,62 @@ class Window(Gtk.ApplicationWindow):
     self.btn(line,'Ouvrir',lambda _b,p=path:self.open_download_item(p))
    if not items:self.info('Aucun téléchargement récent.')
   except OSError as exc:self.info('Lecture du dossier impossible : '+str(exc))
+
+ def _set_update_status(self,message):
+  if hasattr(self,'_update_status'):self._update_status.set_text(message)
+  return False
+ def _version_tuple(self,value):
+  if not re.fullmatch(r'[0-9]+(?:\\.[0-9]+){1,2}',value):raise ValueError('Numéro de version invalide')
+  return tuple(int(x) for x in value.split('.'))+(0,)*(3-len(value.split('.')))
+ def check_updates(self,*_):
+  self._set_update_status('Recherche de la dernière version officielle…')
+  threading.Thread(target=self._check_updates_worker,daemon=True).start()
+ def _check_updates_worker(self):
+  try:
+   req=urllib.request.Request('https://api.github.com/repos/eliott39pro39-png/gestion-des-stockage/releases/latest',headers={'User-Agent':'GestionStockage-Updater/27.4','Accept':'application/vnd.github+json'})
+   with urllib.request.urlopen(req,timeout=12) as response: release=json.load(response)
+   tag=release.get('tag_name','').removeprefix('v')
+   if self._version_tuple(tag)<=self._version_tuple(VERSION):
+    GLib.idle_add(self._set_update_status,'Tu utilises déjà la dernière version officielle ('+VERSION+').')
+    return
+   filename='gestion-stockage-'+tag+'-all.deb'
+   asset=next((a for a in release.get('assets',[]) if a.get('name')==filename),None)
+   if not asset:raise ValueError('Aucun paquet Ubuntu officiel pour cette version.')
+   digest=asset.get('digest','')
+   if not re.fullmatch(r'sha256:[a-fA-F0-9]{64}',digest):raise ValueError('Le paquet ne possède pas de signature SHA-256 vérifiable.')
+   url=asset.get('browser_download_url','')
+   expected='https://github.com/eliott39pro39-png/gestion-des-stockage/releases/download/v'+tag+'/'+filename
+   if url!=expected:raise ValueError('Adresse du téléchargement inattendue.')
+   GLib.idle_add(self._offer_update,tag,url,digest[7:].lower())
+  except Exception as exc:
+   GLib.idle_add(self._set_update_status,'Recherche impossible : '+str(exc))
+ def _offer_update(self,version,url,digest):
+  if self._active_page!='Téléchargements':return False
+  self._set_update_status('Nouvelle version '+version+' disponible !')
+  self.btn(self.content,'⬇ Télécharger et installer '+version,lambda *_:self.dialog('Installer la version '+version+' ?', 'Le paquet sera téléchargé depuis les Releases officielles, vérifié puis installé après autorisation administrateur.',lambda:self._begin_update(version,url,digest))).add_css_class('primary-action')
+  return False
+ def _begin_update(self,version,url,digest):
+  self._set_update_status('Téléchargement et vérification de la version '+version+'…')
+  threading.Thread(target=self._install_update_worker,args=(version,url,digest),daemon=True).start()
+ def _install_update_worker(self,version,url,digest):
+  try:
+   if sys.platform!='linux':raise RuntimeError('Installation disponible uniquement sur Ubuntu/Linux.')
+   if not shutil.which('pkexec') or not pathlib.Path('/usr/bin/apt-get').exists():raise RuntimeError('Installation impossible : pkexec ou apt-get absent.')
+   target=pathlib.Path(tempfile.gettempdir())/('gestion-stockage-'+version+'-all.deb')
+   req=urllib.request.Request(url,headers={'User-Agent':'GestionStockage-Updater/27.4'})
+   h=hashlib.sha256();total=0
+   with urllib.request.urlopen(req,timeout=30) as response, target.open('wb') as output:
+    while chunk:=response.read(1024*256):
+     total+=len(chunk)
+     if total>300*1024*1024:raise RuntimeError('Paquet trop volumineux.')
+     h.update(chunk);output.write(chunk)
+   if h.hexdigest()!=digest:raise RuntimeError('Le contrôle SHA-256 du téléchargement a échoué.')
+   GLib.idle_add(self._set_update_status,'Paquet vérifié. Autorise maintenant l’installation dans la fenêtre système…')
+   result=subprocess.run(['pkexec','/usr/bin/apt-get','install','-y',str(target)],timeout=600,check=False,capture_output=True,text=True)
+   if result.returncode!=0:raise RuntimeError('Installation refusée ou échouée : '+(result.stderr or result.stdout)[-350:])
+   GLib.idle_add(self._set_update_status,'Version '+version+' installée ! Ferme puis rouvre Gestion de stockage.')
+  except Exception as exc:
+   GLib.idle_add(self._set_update_status,'Mise à jour non installée : '+str(exc))
  def open_download_item(self,path):
   if path.is_dir():self.open_dir(path)
   else:
