@@ -46,6 +46,28 @@ def apply_organization(plan):
         moved.append((source, target))
     return moved
 
+
+def undo_organization(moved):
+    """Undo only moves whose source slot is free; never overwrite user files.
+
+    The caller must pass the exact list returned by apply_organization.
+    """
+    restored = []
+    skipped = []
+    for source, target in reversed(list(moved)):
+        source, target = pathlib.Path(source), pathlib.Path(target)
+        if (not _safe_file(target) or source.exists() or source.is_symlink()
+                or target.parent != source.parent / target.parent.name
+                or target.parent.name not in CATEGORIES):
+            skipped.append((source, target))
+            continue
+        try:
+            target.rename(source)
+            restored.append((source, target))
+        except OSError:
+            skipped.append((source, target))
+    return restored, skipped
+
 def disk_map(folder, limit=20000):
     """Read-only directory sizes, capped to avoid unbounded scans."""
     folder = pathlib.Path(folder).resolve(strict=True)
