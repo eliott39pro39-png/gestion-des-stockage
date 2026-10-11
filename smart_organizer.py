@@ -26,7 +26,7 @@ def plan(folder, limit=200):
         if not group:
             continue
         target = root / group / path.name
-        if target.exists() or target.is_symlink():
+        if target.parent.is_symlink() or target.exists() or target.is_symlink():
             continue
         moves.append((path, target))
     return moves
@@ -34,7 +34,7 @@ def plan(folder, limit=200):
 def execute(moves):
     done = []
     for source, target in moves:
-        if source.is_symlink() or not source.is_file() or target.exists() or target.is_symlink():
+        if source.is_symlink() or not source.is_file() or target.parent.is_symlink() or target.exists() or target.is_symlink():
             continue
         if source.parent != target.parent.parent or target.parent.name not in GROUPS:
             continue
