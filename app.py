@@ -471,7 +471,7 @@ class Window(Gtk.ApplicationWindow):
   self.btn(bar,'Annuler',lambda *_:getattr(self,'_duplicates_cancel',threading.Event()).set())
   self.duplicate_status=Gtk.Label(label='Choisis un dossier.',xalign=0,wrap=True);self.content.append(self.duplicate_status)
   self.duplicate_results=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=5);self.content.append(self.duplicate_results)
-  self.duplicate_checks=[]
+  self.duplicate_checks=[];self.duplicate_groups=[]
   self.btn(self.content,'Mettre la sélection à la corbeille',self.trash_duplicates)
  def start_duplicates(self,path):
   if getattr(self,'_duplicates_busy',False):return
@@ -480,7 +480,7 @@ class Window(Gtk.ApplicationWindow):
   self._duplicates_busy=True;self._duplicates_cancel=threading.Event()
   self.duplicate_status.set_text('Analyse en cours, 30 000 fichiers maximum…')
   while child:=self.duplicate_results.get_first_child():self.duplicate_results.remove(child)
-  self.duplicate_checks=[]
+  self.duplicate_checks=[];self.duplicate_groups=[]
   def worker():
    sizes={};pending=[root];count=0;errors=0
    while pending and count<30000 and not self._duplicates_cancel.is_set():
@@ -520,6 +520,7 @@ class Window(Gtk.ApplicationWindow):
   if self._active_page!='Doublons':return False
   saving=sum(size*(len(paths)-1) for size,paths in groups)
   self.duplicate_status.set_text(f'{count} fichiers analysés · {len(groups)} groupes · jusqu’à {saving/1048576:.1f} Mo récupérables · {errors} erreurs'+(' · résultats partiels' if partial else ''))
+  self.duplicate_groups=[paths for _size,paths in groups]
   for size,paths in groups:
    group=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=3);group.add_css_class('release-card')
    group.append(Gtk.Label(label=f'{len(paths)} copies identiques · {size/1048576:.1f} Mo chacune',xalign=0))
@@ -531,13 +532,19 @@ class Window(Gtk.ApplicationWindow):
   chosen=[p for check,p in getattr(self,'duplicate_checks',[]) if check.get_active()]
 
   if not chosen:self.dialog('Aucune sélection','Coche uniquement les copies à mettre à la corbeille.');return
-  self.dialog('Confirmer la mise à la corbeille',f'{len(chosen)} fichier(s) sélectionné(s). Vérifie que tu conserves au moins une copie de chaque document.',lambda:self.execute_trash_duplicates(chosen))
+  if any(all(p in chosen for p in group) for group in self.duplicate_groups):
+   self.dialog('Sélection dangereuse','Conserve au moins une copie dans chaque groupe de doublons.');return
+  self.dialog('Confirmer la mise à la corbeille',f'{len(chosen)} fichier(s) sélectionné(s). Les originaux non sélectionnés seront conservés.',lambda:self.execute_trash_duplicates(chosen))
  def execute_trash_duplicates(self,paths):
   done=0;errors=0
   for p in paths:
    try:
     if p.is_symlink() or not p.is_file():continue
-    Gio.File.new_for_path(str(p)).trash(None);done+=1
+    if sys.platform=='win32':
+     from send2trash import send2trash
+     send2trash(str(p))
+    else:Gio.File.new_for_path(str(p)).trash(None)
+    done+=1
    except Exception:errors+=1
   self.dialog('Résultat',f'{done} fichier(s) mis à la corbeille · {errors} erreur(s).')
   self.duplicates_page()
