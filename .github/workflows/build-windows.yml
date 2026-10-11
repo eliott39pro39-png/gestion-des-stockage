@@ -67,6 +67,7 @@ jobs:
             --add-data "assistant_tools.py:." \
             --add-data "versions:versions" \
             --hidden-import gi \
+            --hidden-import assistant_tools \
             --collect-all gi \
             windows/app_windows.py
       - name: Archive Windows preview
