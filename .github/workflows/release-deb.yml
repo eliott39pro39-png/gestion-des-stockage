@@ -68,19 +68,19 @@ jobs:
           name: gestion-stockage-deb-${{ steps.version.outputs.value }}
           path: dist/*.deb
           if-no-files-found: error
-      - name: Publish Linux 27.6.2 beta release
-        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.6.2'
+      - name: Publish Linux 27.6.3 beta release
+        if: github.ref == 'refs/heads/main' && steps.version.outputs.value == '27.6.3'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "v27.6.2" >/dev/null 2>&1; then
-            echo "Release v27.6.2 already exists; keeping published assets unchanged."
+          if gh release view "v27.6.3" >/dev/null 2>&1; then
+            echo "Release v27.6.3 already exists; keeping published assets unchanged."
           else
-            gh release create "v27.6.2" dist/gestion-stockage-27.6.2-all.deb \
-              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.6.2 — Ouverture des anciennes versions" \
-              --notes "Correctif 27.6.2 : les anciennes versions GTK se lancent avec un identifiant séparé, sans réactiver l’application courante. Les erreurs de démarrage sont affichées et enregistrées." \
+            gh release create "v27.6.3" dist/gestion-stockage-27.6.3-all.deb \
+              --target "${GITHUB_SHA}" --title "Gestion de stockage 27.6.3 — Mode archive sans mises à jour" \
+              --notes "Correctif 27.6.3 : les anciennes versions fonctionnent en mode archive, sans recherche ni installation de mises à jour. Seule la version principale propose les mises à jour." \
               --latest
           fi
       - name: Publish release only for explicit version tags
