@@ -13,6 +13,25 @@ def prepare_source(source, version):
     result, count = APP_ID.subn(lambda match: match.group(1) + identifier + match.group(2), source, count=1)
     if count != 1:
         raise ValueError("Impossible d'isoler l'identifiant GTK de cette ancienne version.")
+    guard = """
+if 'Window' in globals():
+    def _archive_updates_page(self, *_args):
+        self.clear()
+        self.mark_page('Mises à jour')
+        self.heading('ANCIENNE VERSION — MODE ARCHIVE')
+        self.info('Version consultée : ' + VERSION)
+        self.info('Cette copie sert uniquement à consulter une ancienne édition. Les mises à jour sont désactivées ici.')
+        self.info('Pour mettre à jour ton application, retourne à la version principale installée.')
+    def _archive_no_update(self, *_args):
+        self.dialog('Mises à jour désactivées', 'Cette ancienne version est en mode archive. Ouvre la version principale pour installer les mises à jour.')
+    Window.updates_page = _archive_updates_page
+    Window.check_updates = _archive_no_update
+    Window.download_update = _archive_no_update
+    Window._start_update_download = _archive_no_update
+"""
+    marker = "if __name__=='__main__':"
+    if marker in result:
+        result = result.replace(marker, guard + "\n" + marker, 1)
     return result
 
 def main():
