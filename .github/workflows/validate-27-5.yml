@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Syntax check for all Python files
         run: python3 -m compileall -q app.py assistant_tools.py windows versions tests
       - name: Assistant safety regression tests
@@ -30,3 +32,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-gi gir1.2-gtk-4.0 xvfb
           xvfb-run -a env PYTHONPATH=. /usr/bin/python3 tests/test_smoke_gtk.py
+      - name: Archive GTK startup integration
+        run: |
+          python3 packaging/archive_versions.py
+          test -f versions/27.6.0/app.py
+          set +e
+          xvfb-run -a timeout 5s /usr/bin/python3 archive_launcher.py "$(pwd)/versions/27.6.0/app.py" 27.6.0
+          result=$?
+          set -e
+          test "$result" -eq 124
