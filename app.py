@@ -446,9 +446,23 @@ class Window(Gtk.ApplicationWindow):
      self.btn(row,'Ouvrir ⚠',lambda _b,p=script,v=version:self.dialog('Version avec problèmes connus','Cette version a rencontré des problèmes. Ouvrir quand même ?',lambda:self.launch_beta(p,v)))
     else:self.btn(row,'Ouvrir ↗',lambda _b,p=script,v=version:self.launch_beta(p,v))
  def launch_beta(self,script,version):
+  log_path=HOME/'.cache/gestion-stockage-final/archive-launch.log'
   try:
-   subprocess.Popen([sys.executable,str(script)],env={**os.environ,'GESTION_STOCKAGE_ARCHIVE_CHILD':'1'},start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-   self.notify('Version bêta lancée','Gestion de stockage '+version)
+   log_path.parent.mkdir(parents=True,exist_ok=True)
+   log=log_path.open('w',encoding='utf-8')
+   try:
+    process=subprocess.Popen(['/usr/bin/python3',str(pathlib.Path(__file__).with_name('archive_launcher.py')),str(script),version],env={**os.environ,'GESTION_STOCKAGE_ARCHIVE_CHILD':'1'},start_new_session=True,stdout=log,stderr=subprocess.STDOUT)
+   finally:log.close()
+   def check_launch():
+    result=process.poll()
+    if result is None:
+     self.notify('Ancienne version lancée','Gestion de stockage '+version)
+    else:
+     try:details=log_path.read_text(encoding='utf-8')[-1800:]
+     except OSError:details='Consulte le journal : '+str(log_path)
+     self.dialog('Impossible de lancer la version '+version,details or 'Le programme a quitté immédiatement.')
+    return False
+   GLib.timeout_add(1200,check_launch)
   except OSError as exc:self.dialog('Impossible de lancer la version',str(exc))
  def about_page(self,*_):
   self.clear();self.heading('GESTION DE STOCKAGE — '+VERSION)
