@@ -87,6 +87,21 @@ jobs:
           cp -r windows/legacy dist/GestionStockage-Windows/
           cd dist
           python -m zipfile -c GestionStockage-Windows-27.7.0-preview.zip GestionStockage-Windows
+      - name: Verify Windows executable and ZIP contents
+        run: |
+          test -f dist/GestionStockage-Windows/GestionStockage-Windows.exe
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          archive = Path("dist/GestionStockage-Windows-27.7.0-preview.zip")
+          assert archive.is_file() and archive.stat().st_size > 0
+          with ZipFile(archive) as z:
+              bad = z.testzip()
+              assert bad is None, f"Corrupted archive member: {bad}"
+              names = z.namelist()
+              assert any(n.endswith("/GestionStockage-Windows.exe") for n in names), "Executable missing from ZIP"
+          print("Windows executable and ZIP verified")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: GestionStockage-Windows-27.7.0-preview
