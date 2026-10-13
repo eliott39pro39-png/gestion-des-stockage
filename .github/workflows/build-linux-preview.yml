@@ -29,8 +29,14 @@ jobs:
         run: bash packaging/build-deb.sh 27.7.0
       - name: Verify package metadata and contents
         run: |
-          dpkg-deb --field dist/gestion-stockage-27.7.0-all.deb Package Version Architecture
-          dpkg-deb --contents dist/gestion-stockage-27.7.0-all.deb | grep -F 'usr/share/gestion-stockage/app.py'
+          PACKAGE=dist/gestion-stockage-27.7.0-all.deb
+          test "$(dpkg-deb -f "$PACKAGE" Package)" = "gestion-stockage"
+          test "$(dpkg-deb -f "$PACKAGE" Version)" = "27.7.0"
+          test "$(dpkg-deb -f "$PACKAGE" Architecture)" = "all"
+          dpkg-deb --contents "$PACKAGE" | grep -F 'usr/share/gestion-stockage/app.py'
+          dpkg-deb --contents "$PACKAGE" | grep -F 'usr/share/gestion-stockage/assistant_tools.py'
+          dpkg-deb --contents "$PACKAGE" | grep -F 'usr/bin/gestion-stockage'
+          dpkg-deb --contents "$PACKAGE" | grep -F 'usr/share/applications/gestion-stockage.desktop'
       - uses: actions/upload-artifact@v4
         with:
           name: gestion-stockage-27.7.0-linux-preview
