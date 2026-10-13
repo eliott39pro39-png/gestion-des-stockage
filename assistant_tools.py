@@ -40,6 +40,7 @@ def search_items(folder, query, limit=30, max_entries=12000,
                   "document": {".pdf", ".doc", ".docx", ".odt", ".txt"},
                   "pdf": {".pdf"}}
     matches, pending, visited = [], [root], 0
+    truncated = False
     while pending and visited < max_entries and len(matches) < limit:
         if cancel is not None and cancel.is_set():
             return matches, True
@@ -50,6 +51,7 @@ def search_items(folder, query, limit=30, max_entries=12000,
                     if cancel is not None and cancel.is_set():
                         return matches, True
                     if visited >= max_entries or len(matches) >= limit:
+                        truncated = True
                         break
                     visited += 1
                     if progress is not None and visited % 150 == 0:
@@ -73,7 +75,7 @@ def search_items(folder, query, limit=30, max_entries=12000,
             continue
     if progress is not None:
         progress(visited, str(root))
-    return matches, bool(pending)
+    return matches, truncated or bool(pending)
 
 def preview_rename(path, new_name):
     source = pathlib.Path(path)
