@@ -1,0 +1,41 @@
+name: Publish 27.7.0 release
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-27-7-0.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download verified Linux and Windows builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release/linux release/windows
+          gh run download 38425011595 -R "${{ github.repository }}" -n gestion-stockage-27.7.0-linux-preview -D release/linux
+          gh run download 38425011565 -R "${{ github.repository }}" -n GestionStockage-Windows-27.7.0-preview -D release/windows
+          test -s release/linux/gestion-stockage-27.7.0-all.deb
+          test -s release/windows/GestionStockage-Windows-27.7.0-preview.zip
+          unzip -t release/windows/GestionStockage-Windows-27.7.0-preview.zip
+      - name: Publish verified 27.7.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v27.7.0 -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release v27.7.0 already exists; refusing to overwrite it."
+            exit 1
+          fi
+          gh release create v27.7.0 \
+            release/linux/gestion-stockage-27.7.0-all.deb \
+            release/windows/GestionStockage-Windows-27.7.0-preview.zip \
+            -R "${{ github.repository }}" \
+            --target 887b355e199a51fb12659ea5e86280f511319ec9 \
+            --title "Gestion de stockage 27.7.0 — Explorer Edition" \
+            --notes "Nouvel explorateur simplifié, recherche guidée avec progression et annulation, choix français/anglais et notes de version. Les vérifications Python, Linux et Windows ont réussi sur le commit 887b355e. Première publication : signalez tout problème rencontré après installation."
