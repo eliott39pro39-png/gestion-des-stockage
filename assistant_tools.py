@@ -68,7 +68,7 @@ def search_items(folder, query, limit=30, max_entries=12000,
             continue
     if progress is not None:
         progress(visited, str(root))
-    return matches, bool(pending) or visited >= max_entries
+    return matches, bool(pending) or (visited >= max_entries and bool(pending))
 
 def preview_rename(path, new_name):
     source = pathlib.Path(path)
