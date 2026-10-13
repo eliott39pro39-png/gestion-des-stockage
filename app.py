@@ -123,6 +123,7 @@ class Window(Gtk.ApplicationWindow):
  def language_setup(self):
   self.clear();self.mark_page('Langue')
   self.info('Choisissez votre langue / Choose your language')
+  self.info('Le français et l’anglais sont disponibles. / French and English are available.')
   self.btn(self.content,'Français',lambda *_:self.set_language('fr'))
   self.btn(self.content,'English',lambda *_:self.set_language('en'))
  def set_language(self,language):
@@ -136,9 +137,10 @@ class Window(Gtk.ApplicationWindow):
                    'Simpler file explorer, improved search, search progress and language selection.')}
   fr,en=notes.get(VERSION,('Améliorations et corrections.','Improvements and fixes.'))
   message=self.tr(fr,en)
-  self.dialog(self.tr('Nouveautés de la version ','What is new in version ')+VERSION,message)
-  self.prefs['last_seen_version']=VERSION
-  self.save_prefs()
+  def acknowledged():
+   self.prefs['last_seen_version']=VERSION
+   self.save_prefs()
+  self.dialog(self.tr('Nouveautés de la version ','What is new in version ')+VERSION,message,acknowledged)
   return False
  def on_key_pressed(self,_controller,keyval,_keycode,state):
   ctrl=bool(state & Gdk.ModifierType.CONTROL_MASK)
@@ -302,6 +304,7 @@ class Window(Gtk.ApplicationWindow):
   self.clear();self.mark_page('Paramètres');self.heading('PARAMÈTRES  ⚙')
   self.info('Personnalise ton application. Les changements sont enregistrés automatiquement.')
   self.info('Langue / Language')
+  self.info('Certaines pages restent en français pendant la traduction. / Some pages are not translated yet.')
   language_row=Gtk.Box(spacing=8);self.content.append(language_row)
   self.btn(language_row,'Français',lambda *_:self.set_language('fr'))
   self.btn(language_row,'English',lambda *_:self.set_language('en'))
