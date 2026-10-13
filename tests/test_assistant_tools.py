@@ -35,6 +35,8 @@ with tempfile.TemporaryDirectory() as temp:
     # Search understands common French requests and file types.
     (root/"photo-vacances.jpg").write_bytes(b"image")
     (root/"rapport.pdf").write_bytes(b"pdf")
+    (root/"résumé-été.txt").write_text("accents")
+    assert any(p.name=="résumé-été.txt" for p in a.search_items(root,"resume ete")[0])
     assert a.normalize_query("Trouve mes photos") == ["image"]
     assert a.normalize_query("Cherche le fichier rapport.pdf") == ["rapport.pdf"]
     assert any(p.name=="photo-vacances.jpg" for p in a.search_items(root,"trouve mes photos")[0])
