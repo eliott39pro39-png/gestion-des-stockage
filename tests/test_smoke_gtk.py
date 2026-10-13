@@ -2,8 +2,16 @@
 import pathlib
 import tempfile
 import time
-from gi.repository import GLib
-import app
+try:
+    from gi.repository import GLib
+    import app
+except ModuleNotFoundError as exc:
+    if exc.name != 'gi':
+        raise
+    if __name__ == '__main__':
+        raise SystemExit('GTK4/PyGObject is required for this smoke test')
+    import unittest
+    raise unittest.SkipTest('GTK4/PyGObject unavailable in this Python environment')
 
 application = app.App()
 application.register(None)
