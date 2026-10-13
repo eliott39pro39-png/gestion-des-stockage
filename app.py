@@ -6,7 +6,7 @@ import assistant_history
 import smart_organizer
 HOME=pathlib.Path.home()
 APP='Gestion de stockage'
-VERSION='27.6.3'
+VERSION='27.7.0'
 CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
@@ -816,15 +816,38 @@ class Window(Gtk.ApplicationWindow):
   def find(mode):
    clear_results()
    self.prompt('Assistant — rechercher','Nom du fichier ou dossier', '',lambda query:run_search(mode,query))
+  search_state={'cancel':None,'running':False}
+  search_status=Gtk.Label(label='Prêt à rechercher',xalign=0,wrap=True)
+  self.content.append(search_status)
   def run_search(mode,query):
+   if search_state['cancel'] is not None:
+    search_state['cancel'].set()
+   cancel=threading.Event()
+   search_state['cancel']=cancel
+   search_state['running']=True
+   search_status.set_text('🔎 Recherche en cours… 0 éléments analysés')
    speak('🔎 Je cherche « '+query+' »…')
    raw_folder=folder.get_text()
+   def update_progress(count,path):
+    GLib.idle_add(lambda: search_status.set_text(
+     f'🔎 {count} éléments analysés • {path}' if search_state['cancel'] is cancel else search_status.get_text()) or False)
+   def done(found,partial):
+    if search_state['cancel'] is not cancel:return False
+    search_state['running']=False
+    search_status.set_text('✓ Recherche terminée'+(' (limite atteinte)' if partial else ''))
+    return show_found(mode,found,partial)
+   def failure(exc):
+    if search_state['cancel'] is not cancel:return False
+    search_state['running']=False
+    search_status.set_text('⚠️ Recherche interrompue')
+    return speak('😕 Recherche impossible : '+str(exc))
    def worker():
     try:
-     found,partial=assistant_tools.search_items(raw_folder,query)
-     GLib.idle_add(show_found,mode,found,partial)
-    except Exception as exc:GLib.idle_add(speak,'😕 Recherche impossible : '+str(exc))
+     found,partial=assistant_tools.search_items(raw_folder,query,progress=update_progress,cancel=cancel)
+     GLib.idle_add(done,found,partial)
+    except Exception as exc:GLib.idle_add(failure,exc)
    threading.Thread(target=worker,daemon=True).start()
+  self.btn(self.content,'⏹ Annuler la recherche',lambda *_:search_state['cancel'].set() if search_state['cancel'] else None)
   def show_found(mode,found,partial):
    if found:speak(f'OUI !! 🎉 J’ai trouvé {len(found)} fichier(s) ou dossier(s) correspondant à ta recherche !'+(' ⚠️ Recherche partielle.' if partial else '')+' 👇')
    else:speak('😕 Aucun résultat. Essaie un autre nom ou dossier !')
@@ -860,7 +883,7 @@ class Window(Gtk.ApplicationWindow):
     if query:run_search('rename',query)
     else:speak('✏️ Quel fichier veux-tu renommer ? Exemple : Renomme test.txt')
     return
-   if lower.startswith(('trouve ', 'trouver ', 'cherche ', 'chercher ', 'recherche ', 'rechercher ')):
+   if lower.startswith(('trouve ', 'trouver ', 'cherche ', 'chercher ', 'recherche ', 'rechercher ', 'retrouve ', 'retrouver ', 'montre ', 'affiche ')):
     query=message.split(' ',1)[1].strip()
     for prefix in ('le fichier ', 'un fichier ', 'le dossier ', 'un dossier '):
      if query.casefold().startswith(prefix):query=query[len(prefix):].strip()
@@ -868,7 +891,7 @@ class Window(Gtk.ApplicationWindow):
     if query:run_search('search',query)
     else:speak('🔎 Dis-moi le nom du fichier à chercher !')
     return
-   if lower in ('salut','bonjour','hello','coucou','hey'):speak('Coucou !! 👋💙 Je suis prêt à t’aider !');return
+   if any(word in lower for word in ('fichier','fichiers','photo','photos','image','images','pdf','document','documents','vidéo','vidéos')):\n    run_search('search',message);return\n   if lower in ('salut','bonjour','hello','coucou','hey'):speak('Coucou !! 👋💙 Je suis prêt à t’aider !');return
    speak('🤔 Je ne comprends pas encore cette demande. Essaie « Trouve War Thunder », « Renomme test.txt » ou « Doublons » ! 💙')
   self.btn(composer,'➤ Envoyer',send)
   message_entry.connect('activate',send)
