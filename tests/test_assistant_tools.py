@@ -47,6 +47,14 @@ with tempfile.TemporaryDirectory() as temp:
     # A low scan limit should also signal incomplete traversal.
     _, incomplete = a.search_items(root,"missing",max_entries=1)
     assert incomplete
+    assert a.normalize_query("Find my pictures") == ["image"]
+    assert any(p.name=="photo-vacances.jpg" for p in a.search_items(root,"Find my pictures")[0])
+    for vague in ("trouve", "find my files", "cherche mes fichiers"):
+        try:
+            a.search_items(root,vague)
+            raise AssertionError("Vague search request accepted: "+vague)
+        except ValueError:
+            pass
     import threading
     stop=threading.Event()
     stop.set()
