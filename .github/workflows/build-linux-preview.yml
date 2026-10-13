@@ -23,6 +23,8 @@ jobs:
           python-version: '3.12'
       - name: Check syntax
         run: python -m compileall -q app.py assistant_tools.py assistant_history.py smart_organizer.py
+      - name: Run unittest safety suite
+        run: PYTHONPATH=. python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Run regression tests
         run: PYTHONPATH=. python tests/test_assistant_tools.py
       - name: Build Debian preview
