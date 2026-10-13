@@ -60,7 +60,7 @@ class AssistantSafetyTests(unittest.TestCase):
     def test_existing_destination_is_preserved(self):
         before = (self.root / "notes.txt").read_text(encoding="utf-8")
         with self.assertRaises(FileExistsError):
-            assistant_tools.preview_rename(self.root / "documents" / "résumé.txt", "notes.txt") if False else assistant_tools.preview_rename(self.root / "notes.txt", "documents")
+            assistant_tools.preview_rename(self.root / "notes.txt", "documents")
         self.assertEqual((self.root / "notes.txt").read_text(encoding="utf-8"), before)
 
     def test_rename_rollback_on_unlink_failure(self):
