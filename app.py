@@ -11,10 +11,10 @@ CONFIG=HOME/'.config/gestion-stockage-final/settings.json'
 CSS_BASE = """
 window, window.background { background-color: SOLIDBG; color: FG; }\n.app-root { background: BG; color: FG; }
 .app-root { background-color: BG; }
-.sidebar { background: SIDE; border-right: 1px solid BORDER; padding: 18px; min-width: 165px; }
+.sidebar { background: SIDE; border-right: 1px solid BORDER; padding: 12px; min-width: 155px; }
 .sidebar button { min-height: ROWHEIGHT; border-radius: 13px; margin: 3px 0; background: transparent; color: FG; border: 1px solid transparent; font-weight: 600; }
 .sidebar button:hover { background: HOVER; border-color: BORDER; }
-.brand { color: ACCENT; font-weight: 900; font-size: 18px; padding: 14px 5px 22px 5px; }
+.brand { color: ACCENT; font-weight: 800; font-size: 17px; padding: 12px 5px 16px 5px; }
 .content-area { background: transparent; color: FG; }
 .main-panel { background: BG; }
 .topbar { background: TOP; border-bottom: 1px solid BORDER; padding: 10px 20px; }
@@ -702,45 +702,79 @@ class Window(Gtk.ApplicationWindow):
   self.clear();self.mark_page('Fichiers')
   self.page_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.NEVER)
   self.content.set_vexpand(True)
-  title=Gtk.Label(label='📁 EXPLORATEUR DE FICHIERS',xalign=0)
-  title.add_css_class('file-name');self.content.append(title)
-  toolbar=Gtk.FlowBox();toolbar.set_selection_mode(Gtk.SelectionMode.NONE);toolbar.set_max_children_per_line(4);toolbar.set_row_spacing(5);toolbar.set_column_spacing(6);toolbar.add_css_class('file-toolbar');self.content.append(toolbar)
-  self.btn(toolbar,'← Retour',self.go_back)
-  self.btn(toolbar,'→ Suivant',self.go_forward)
-  self.btn(toolbar,'⭐ Favori',self.add_favorite)
-  self.btn(toolbar,'☆ Retirer favori',self.remove_favorite)
-  self.btn(toolbar,'⬆ Parent',lambda *_:self.open_dir(self.cwd.parent))
-  self.btn(toolbar,'📋 Chemin dossier',self.copy_current_folder_path)
-  self.btn(toolbar,'🏠 Dossier personnel',lambda *_:self.open_dir(HOME))
-  self.btn(toolbar,'📁 Nouveau dossier',self.mkdir)
-  self.btn(toolbar,'👁 Fichiers cachés',self.hidden)
-  self.path=Gtk.Entry(text=str(self.cwd));self.path.set_width_chars(18);self.path.set_max_width_chars(25);self.path.connect('activate',lambda e:self.open_dir(pathlib.Path(e.get_text()).expanduser()));toolbar.append(self.path)
-  fav=Gtk.Box(spacing=5);self.content.append(fav)
-  for name,path in [('🏠',HOME),('📥',HOME/'Téléchargements'),('🖼️',HOME/'Images')]:
-   if path.is_dir():self.btn(fav,name,lambda _b,p=path:self.open_dir(p))
-  for path in self.prefs.get('favorites',[])[:5]:
-   pp=pathlib.Path(path)
-   if pp.is_dir():self.btn(fav,'⭐ '+pp.name,lambda _b,p=pp:self.open_dir(p))
-  findrow=Gtk.FlowBox();findrow.set_selection_mode(Gtk.SelectionMode.NONE);findrow.set_max_children_per_line(4);findrow.set_row_spacing(5);findrow.set_column_spacing(6);self.content.append(findrow)
-  self.search=Gtk.SearchEntry(placeholder_text='Rechercher un fichier ou un dossier ici…');self.search.set_hexpand(True);self.search.connect('search-changed',lambda *_:self.refresh());findrow.append(self.search)
-  self.btn(findrow,'Nom ↕',lambda *_:self.change_file_sort('name'))
-  self.btn(findrow,'Taille ↕',lambda *_:self.change_file_sort('size'))
-  self.btn(findrow,'Date ↕',lambda *_:self.change_file_sort('date'))
-  self.btn(findrow,'▦ / ☷',self.toggle_file_view)
+  title=Gtk.Label(label='Mes fichiers',xalign=0)
+  title.add_css_class('heading');self.content.append(title)
+  nav=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8)
+  nav.add_css_class('file-toolbar');self.content.append(nav)
+  self.btn(nav,'←',self.go_back)
+  self.btn(nav,'→',self.go_forward)
+  self.btn(nav,'↑',lambda *_:self.open_dir(self.cwd.parent))
+  self.btn(nav,'⌂',lambda *_:self.open_dir(HOME))
+  self.path=Gtk.Entry(text=str(self.cwd),hexpand=True)
+  self.path.set_tooltip_text('Chemin du dossier • Entrée pour ouvrir')
+  self.path.connect('activate',lambda e:self.open_dir(pathlib.Path(e.get_text()).expanduser()))
+  nav.append(self.path)
+  quick=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=6);self.content.append(quick)
+  for name,paths in [('Téléchargements',['Téléchargements','Downloads']),('Documents',['Documents']),('Images',['Images','Pictures'])]:
+   target=next((HOME/p for p in paths if (HOME/p).is_dir()),None)
+   if target:self.btn(quick,name,lambda _b,p=target:self.open_dir(p))
+  searchrow=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8)
+  self.content.append(searchrow)
+  self.search=Gtk.SearchEntry(placeholder_text='Filtrer les fichiers de ce dossier…')
+  self.search.set_hexpand(True)
+  self.search.connect('search-changed',lambda *_:self.refresh())
+  searchrow.append(self.search)
+  self.btn(searchrow,'Liste / grille',self.toggle_file_view)
+  menu=Gtk.MenuButton(label='⋯ Options')
+  pop=Gtk.Popover()
+  opts=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4)
+  opts.set_margin_top(8);opts.set_margin_bottom(8)
+  opts.set_margin_start(8);opts.set_margin_end(8)
+  for label,cb in [('Nouveau dossier',self.mkdir),('Ajouter aux favoris',self.add_favorite),
+                   ('Retirer des favoris',self.remove_favorite),('Afficher fichiers cachés',self.hidden),
+                   ('Trier par nom',lambda *_:self.change_file_sort('name')),
+                   ('Trier par taille',lambda *_:self.change_file_sort('size')),
+                   ('Trier par date',lambda *_:self.change_file_sort('date')),
+                   ('Copier le chemin',self.copy_current_folder_path)]:
+   self.btn(opts,label,cb)
+  pop.set_child(opts);menu.set_popover(pop);searchrow.append(menu)
   filters=Gtk.Box(spacing=5);self.content.append(filters)
   for label,key in [('Tous','all'),('Dossiers','folders'),('Images','images'),('Documents','documents')]:
    self.btn(filters,label,lambda _b,k=key:self.set_file_filter(k)).add_css_class('file-filter')
-  self.count_label=Gtk.Label(xalign=0);self.count_label.add_css_class('file-count');self.content.append(self.count_label)
-  scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True);scroll.set_min_content_height(240);self.content.append(scroll)
-  self.listbox=Gtk.ListBox();self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE);self.listbox.connect('row-activated',self.activate_row);self.listbox.connect('row-selected',lambda *_:self.update_file_actions())
-  self.file_grid=Gtk.FlowBox();self.file_grid.set_selection_mode(Gtk.SelectionMode.SINGLE);self.file_grid.set_min_children_per_line(2);self.file_grid.set_max_children_per_line(5);self.file_grid.set_column_spacing(8);self.file_grid.set_row_spacing(8)
+  self.count_label=Gtk.Label(xalign=0)
+  self.count_label.add_css_class('file-count');self.content.append(self.count_label)
+  scroll=Gtk.ScrolledWindow(vexpand=True,hexpand=True)
+  scroll.set_min_content_height(240);self.content.append(scroll)
+  self.listbox=Gtk.ListBox()
+  self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+  self.listbox.connect('row-activated',self.activate_row)
+  self.listbox.connect('row-selected',lambda *_:self.update_file_actions())
+  self.file_grid=Gtk.FlowBox()
+  self.file_grid.set_selection_mode(Gtk.SelectionMode.SINGLE)
+  self.file_grid.set_min_children_per_line(2)
+  self.file_grid.set_max_children_per_line(5)
+  self.file_grid.set_column_spacing(8)
+  self.file_grid.set_row_spacing(8)
   self.file_grid.connect('child-activated',lambda _box,child:self.open_dir(child.path) if child.path.is_dir() else self.open_file_path(child.path))
   self.file_grid.connect('selected-children-changed',lambda *_:self.update_file_actions())
   scroll.set_child(self.file_grid if self.file_view=='grid' else self.listbox)
-  actions=Gtk.Box(spacing=6);actions.add_css_class('file-actions');self.content.append(actions);self.file_actions=actions
-  for label,cb in [('Ouvrir',self.open_selected),('📋 Copier chemin',self.copy_selected_path),('Copier vers…',lambda *_:self.choose_destination(False)),('Déplacer vers…',lambda *_:self.choose_destination(True)),('Renommer',self.rename),('Corbeille',self.trash),('Supprimer définitivement',self.delete)]:self.btn(actions,label,cb)
-  actions.get_last_child().add_css_class('danger-action');actions.set_visible(False)
-  
+  actions=Gtk.Box(spacing=6);actions.add_css_class('file-actions')
+  self.content.append(actions);self.file_actions=actions
+  self.btn(actions,'Ouvrir',self.open_selected)
+  self.btn(actions,'Renommer',self.rename)
+  self.btn(actions,'Copier',lambda *_:self.choose_destination(False))
+  self.btn(actions,'Déplacer',lambda *_:self.choose_destination(True))
+  extra=Gtk.MenuButton(label='⋯ Plus')
+  extra_pop=Gtk.Popover()
+  extra_box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4)
+  extra_box.set_margin_top(8);extra_box.set_margin_bottom(8)
+  extra_box.set_margin_start(8);extra_box.set_margin_end(8)
+  self.btn(extra_box,'Copier le chemin',self.copy_selected_path)
+  self.btn(extra_box,'Mettre à la corbeille',self.trash)
+  danger=self.btn(extra_box,'Supprimer définitivement',self.delete)
+  danger.add_css_class('danger-action')
+  extra_pop.set_child(extra_box);extra.set_popover(extra_pop)
+  actions.append(extra);actions.set_visible(False)
   self.refresh()
  def toggle_file_view(self,*_):
   self.file_view='grid' if self.file_view=='list' else 'list';self.save_prefs();self.files()
