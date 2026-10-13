@@ -13,6 +13,6 @@ jobs:
       - name: Syntax check
         run: python -m compileall -q app.py assistant_tools.py assistant_history.py smart_organizer.py
       - name: Assistant tests
-        run: python tests/test_assistant_tools.py
+        run: PYTHONPATH=. python tests/test_assistant_tools.py
       - name: All available unittest tests
         run: python -m unittest discover -s tests -p 'test_*.py'
