@@ -114,7 +114,9 @@ class Window(Gtk.ApplicationWindow):
   self.page_stack=Gtk.Stack(vexpand=True,hexpand=True);self.page_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE);self.page_stack.set_transition_duration(360);self.main_panel.append(self.page_stack)
   self.content=None;self.page_scroll=None
   key=Gtk.EventControllerKey();key.connect('key-pressed',self.on_key_pressed);self.add_controller(key)
-  if self.language in ('fr','en'):self.home()
+  if self.language in ('fr','en'):
+   self.home()
+   GLib.idle_add(self.show_release_notes)
   else:self.language_setup()
  def tr(self,fr,en):
   return en if self.language=='en' else fr
@@ -127,6 +129,17 @@ class Window(Gtk.ApplicationWindow):
   if language not in ('fr','en'):return
   self.language=language;self.prefs['language']=language
   self.save_prefs();self.update_nav_labels();self.home()
+  GLib.idle_add(self.show_release_notes)
+ def show_release_notes(self):
+  if self.prefs.get('last_seen_version')==VERSION:return False
+  notes={'27.7.0':('Explorateur simplifié, recherche améliorée, suivi des recherches et choix de langue.',
+                   'Simpler file explorer, improved search, search progress and language selection.')}
+  fr,en=notes.get(VERSION,('Améliorations et corrections.','Improvements and fixes.'))
+  message=self.tr(fr,en)
+  self.dialog(self.tr('Nouveautés de la version ','What is new in version ')+VERSION,message)
+  self.prefs['last_seen_version']=VERSION
+  self.save_prefs()
+  return False
  def on_key_pressed(self,_controller,keyval,_keycode,state):
   ctrl=bool(state & Gdk.ModifierType.CONTROL_MASK)
   alt=bool(state & Gdk.ModifierType.ALT_MASK)
