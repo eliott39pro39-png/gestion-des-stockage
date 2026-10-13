@@ -8,6 +8,10 @@ on:
     paths:
       - 'app.py'
       - 'assistant_tools.py'
+      - 'assistant_history.py'
+      - 'smart_organizer.py'
+      - 'tests/**'
+      - 'packaging/**'
       - 'mountain-bg.png'
       - 'windows/**'
       - 'versions/**'
