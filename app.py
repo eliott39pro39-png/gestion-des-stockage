@@ -73,6 +73,7 @@ class Window(Gtk.ApplicationWindow):
   self.entries=[];self.file_sort='name';self.file_sort_reverse=False;self.file_filter='all'
   try: self.prefs=json.loads(CONFIG.read_text())
   except (OSError,ValueError,TypeError): self.prefs={}
+  self.language=self.prefs.get('language')
   self.theme=self.prefs.get('theme','system')
   if self.theme not in ('system','dark','light'):self.theme='system'
   self.accent=self.prefs.get('accent','neon')
@@ -113,7 +114,19 @@ class Window(Gtk.ApplicationWindow):
   self.page_stack=Gtk.Stack(vexpand=True,hexpand=True);self.page_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE);self.page_stack.set_transition_duration(360);self.main_panel.append(self.page_stack)
   self.content=None;self.page_scroll=None
   key=Gtk.EventControllerKey();key.connect('key-pressed',self.on_key_pressed);self.add_controller(key)
-  self.home()
+  if self.language in ('fr','en'):self.home()
+  else:self.language_setup()
+ def tr(self,fr,en):
+  return en if self.language=='en' else fr
+ def language_setup(self):
+  self.clear();self.mark_page('Langue')
+  self.info('Choisissez votre langue / Choose your language')
+  self.btn(self.content,'Français',lambda *_:self.set_language('fr'))
+  self.btn(self.content,'English',lambda *_:self.set_language('en'))
+ def set_language(self,language):
+  if language not in ('fr','en'):return
+  self.language=language;self.prefs['language']=language
+  self.save_prefs();self.update_nav_labels();self.home()
  def on_key_pressed(self,_controller,keyval,_keycode,state):
   ctrl=bool(state & Gdk.ModifierType.CONTROL_MASK)
   alt=bool(state & Gdk.ModifierType.ALT_MASK)
@@ -253,8 +266,10 @@ class Window(Gtk.ApplicationWindow):
   for k,v in sorted(colors.items(),key=lambda item:-len(item[0])):css=css.replace(k,v)
   self.css.load_from_data(css.encode())
  def update_nav_labels(self):
+  names={'Accueil':'Home','Fichiers':'Files','Corbeille':'Trash','Jeux & applis':'Games & apps','Nettoyage':'Cleanup','Détective stockage':'Storage inspector','Radar doublons':'Duplicates','Fichiers inutiles':'Unused files','Téléchargements':'Downloads','Favoris':'Favorites','Anciennes versions':'Previous versions','Mises à jour':'Updates','Paramètres':'Settings','Raccourcis':'Shortcuts'}
   for button,icon,name in self.nav_buttons:
-   button.set_label((icon+'    ' if self.nav_style=='icons' else '')+name)
+   label=names.get(name,name) if self.language=='en' else name
+   button.set_label((icon+'    ' if self.nav_style=='icons' else '')+label)
  def set_background_style(self,value):
   self.background_style=value;self.restyle();self.save_prefs()
  def set_density(self,value):
@@ -273,6 +288,10 @@ class Window(Gtk.ApplicationWindow):
  def settings_page(self,*_):
   self.clear();self.mark_page('Paramètres');self.heading('PARAMÈTRES  ⚙')
   self.info('Personnalise ton application. Les changements sont enregistrés automatiquement.')
+  self.info('Langue / Language')
+  language_row=Gtk.Box(spacing=8);self.content.append(language_row)
+  self.btn(language_row,'Français',lambda *_:self.set_language('fr'))
+  self.btn(language_row,'English',lambda *_:self.set_language('en'))
   self.info('NOUVEAU 27.4 — vraies transitions fondues entre les pages et mises à jour GitHub.')
   self.btn(self.content,'⬆ Vérifier les mises à jour',self.updates_page)
   self.info('1. Fond de l’application')
@@ -702,7 +721,7 @@ class Window(Gtk.ApplicationWindow):
   self.clear();self.mark_page('Fichiers')
   self.page_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.NEVER)
   self.content.set_vexpand(True)
-  title=Gtk.Label(label='Mes fichiers',xalign=0)
+  title=Gtk.Label(label=self.tr('Mes fichiers','My files'),xalign=0)
   title.add_css_class('heading');self.content.append(title)
   nav=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8)
   nav.add_css_class('file-toolbar');self.content.append(nav)
@@ -720,7 +739,7 @@ class Window(Gtk.ApplicationWindow):
    if target:self.btn(quick,name,lambda _b,p=target:self.open_dir(p))
   searchrow=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8)
   self.content.append(searchrow)
-  self.search=Gtk.SearchEntry(placeholder_text='Filtrer les fichiers de ce dossier…')
+  self.search=Gtk.SearchEntry(placeholder_text=self.tr('Filtrer les fichiers de ce dossier…','Filter files in this folder…'))
   self.search.set_hexpand(True)
   self.search.connect('search-changed',lambda *_:self.refresh())
   searchrow.append(self.search)
