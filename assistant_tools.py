@@ -1,13 +1,18 @@
 """Assistant guidé local : recherches bornées et renommage explicitement confirmé."""
 import os
 import pathlib
+import unicodedata
+
+def normalize_name(value):
+    """Accent-insensitive case-folding for matching filenames."""
+    value = unicodedata.normalize("NFKD", str(value).casefold())
+    return "".join(c for c in value if not unicodedata.combining(c))
+
 
 def normalize_query(query):
     """Convert common French requests into searchable filename terms."""
     import re
-    import unicodedata
-    q = unicodedata.normalize("NFKD", query.casefold())
-    q = "".join(c for c in q if not unicodedata.combining(c))
+    q = normalize_name(query)
     q = re.sub(r"[^\w. -]", " ", q)
     words = q.split()
     stop = {"trouve", "trouver", "cherche", "chercher", "recherche", "rechercher",
@@ -53,7 +58,7 @@ def search_items(folder, query, limit=30, max_entries=12000,
                         if entry.is_symlink():
                             continue
                         is_dir = entry.is_dir(follow_symlinks=False)
-                        name = entry.name.casefold()
+                        name = normalize_name(entry.name)
                         def matches_term(term):
                             return (name.find(term) >= 0 or
                                     (not is_dir and term in extensions and
@@ -68,7 +73,7 @@ def search_items(folder, query, limit=30, max_entries=12000,
             continue
     if progress is not None:
         progress(visited, str(root))
-    return matches, bool(pending) or (visited >= max_entries and bool(pending))
+    return matches, bool(pending)
 
 def preview_rename(path, new_name):
     source = pathlib.Path(path)
