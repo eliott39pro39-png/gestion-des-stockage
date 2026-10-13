@@ -861,8 +861,8 @@ class Window(Gtk.ApplicationWindow):
   self.clear();self.mark_page('Assistant');self.heading(self.tr('DISCUTE AVEC TON ASSISTANT  🤖','CHAT WITH YOUR ASSISTANT  🤖'))
   self.info(self.tr('Salut !! 👋💙 Écris-moi ce que tu cherches. Je te répondrai comme dans une conversation ! 🤖','Hi! 👋💙 Tell me what you are looking for. I will help you find it! 🤖'))
   folder=Gtk.Entry(text=str(HOME),hexpand=True);self.content.append(folder)
-  self.info('Dossier dans lequel rechercher (tu peux changer ce chemin) :')
-  status=Gtk.Label(label='🤖 Salut !! 👋💙 Écris ta demande ci-dessous !',xalign=0,wrap=True);self.content.append(status)
+  self.info(self.tr('Dossier dans lequel rechercher (tu peux changer ce chemin) :','Folder to search in (you can change this path):'))
+  status=Gtk.Label(label=self.tr('🤖 Salut !! 👋💙 Écris ta demande ci-dessous !','🤖 Hi! 👋💙 Type your request below!'),xalign=0,wrap=True);self.content.append(status)
   scroller=Gtk.ScrolledWindow(vexpand=True,min_content_height=280)
   scroller.set_kinetic_scrolling(True)
   self.content.append(scroller)
@@ -887,7 +887,7 @@ class Window(Gtk.ApplicationWindow):
    GLib.idle_add(lambda:scroller.get_vadjustment().set_value(scroller.get_vadjustment().get_upper()) or False)
    return False
   composer=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8);self.content.append(composer)
-  message_entry=Gtk.Entry(placeholder_text='💬 Ex : Trouve War Thunder',hexpand=True)
+  message_entry=Gtk.Entry(placeholder_text=self.tr('💬 Ex : Trouve War Thunder','💬 E.g. Find War Thunder'),hexpand=True)
   composer.append(message_entry)
   def clear_results():
    pass  # Preserve conversation history
@@ -895,7 +895,7 @@ class Window(Gtk.ApplicationWindow):
    clear_results()
    self.prompt('Assistant — rechercher','Nom du fichier ou dossier', '',lambda query:run_search(mode,query))
   search_state={'cancel':None,'running':False}
-  search_status=Gtk.Label(label='Prêt à rechercher',xalign=0,wrap=True)
+  search_status=Gtk.Label(label=self.tr('Prêt à rechercher','Ready to search'),xalign=0,wrap=True)
   self.content.append(search_status)
   def run_search(mode,query):
    if search_state['cancel'] is not None:
