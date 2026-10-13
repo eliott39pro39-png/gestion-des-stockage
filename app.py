@@ -310,7 +310,7 @@ class Window(Gtk.ApplicationWindow):
   self.theme={'system':'dark','dark':'light','light':'system'}[self.theme]
   self.apply_theme();self.update_theme_label();self.save_prefs()
  def settings_page(self,*_):
-  self.clear();self.mark_page('Paramètres');self.heading('PARAMÈTRES  ⚙')
+  self.clear();self.mark_page('Paramètres');self.heading(self.tr('PARAMÈTRES  ⚙','SETTINGS  ⚙'))
   self.info(self.tr('Personnalise ton application. Les changements sont enregistrés automatiquement.','Customize your app. Changes are saved automatically.'))
   self.info('Langue / Language')
   self.info('Certaines pages restent en français pendant la traduction. / Some pages are not translated yet.')
@@ -858,8 +858,8 @@ class Window(Gtk.ApplicationWindow):
   self.btn(self.content,'🔎 Prévisualiser le rangement',prepare)
   self.info('Catégories : Images, Vidéos, Musique, Documents et Archives. Les fichiers inconnus sont laissés en place.')
  def assistant_page(self,*_):
-  self.clear();self.mark_page('Assistant');self.heading('DISCUTE AVEC TON ASSISTANT  🤖')
-  self.info('Salut !! 👋💙 Écris-moi ce que tu cherches. Je te répondrai comme dans une conversation ! 🤖')
+  self.clear();self.mark_page('Assistant');self.heading(self.tr('DISCUTE AVEC TON ASSISTANT  🤖','CHAT WITH YOUR ASSISTANT  🤖'))
+  self.info(self.tr('Salut !! 👋💙 Écris-moi ce que tu cherches. Je te répondrai comme dans une conversation ! 🤖','Hi! 👋💙 Tell me what you are looking for. I will help you find it! 🤖'))
   folder=Gtk.Entry(text=str(HOME),hexpand=True);self.content.append(folder)
   self.info('Dossier dans lequel rechercher (tu peux changer ce chemin) :')
   status=Gtk.Label(label='🤖 Salut !! 👋💙 Écris ta demande ci-dessous !',xalign=0,wrap=True);self.content.append(status)
@@ -1082,7 +1082,9 @@ class Window(Gtk.ApplicationWindow):
    return p.name.casefold()
   self.entries.sort(key=order,reverse=self.file_sort_reverse)
   self.entries.sort(key=lambda p:not p.is_dir())
-  self.count_label.set_text(f'{len(self.entries)} élément(s)  ·  '+{'all':'Tous','folders':'Dossiers','images':'Images','documents':'Documents'}[self.file_filter]+'  ·  Tri : '+{'name':'nom','size':'taille','date':'date'}[self.file_sort])
+  filters={'all':self.tr('Tous','All'),'folders':self.tr('Dossiers','Folders'),'images':self.tr('Images','Images'),'documents':self.tr('Documents','Documents')}
+  sorts={'name':self.tr('nom','name'),'size':self.tr('taille','size'),'date':self.tr('date','date')}
+  self.count_label.set_text(f'{len(self.entries)} '+self.tr('élément(s)','item(s)')+'  ·  '+filters[self.file_filter]+'  ·  '+self.tr('Tri : ','Sort: ')+sorts[self.file_sort])
   for p in self.entries:
    row=Gtk.ListBoxRow();line=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=12)
    compact=self.file_view=='list'
