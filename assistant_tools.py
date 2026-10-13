@@ -32,7 +32,8 @@ def search_items(folder, query, limit=30, max_entries=12000,
         raise ValueError("Indique un nom de fichier ou de dossier.")
     extensions = {"image": {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"},
                   "video": {".mp4", ".mov", ".avi", ".mkv"},
-                  "document": {".pdf", ".doc", ".docx", ".odt", ".txt"}}
+                  "document": {".pdf", ".doc", ".docx", ".odt", ".txt"},
+                  "pdf": {".pdf"}}
     matches, pending, visited = [], [root], 0
     while pending and visited < max_entries and len(matches) < limit:
         if cancel is not None and cancel.is_set():
