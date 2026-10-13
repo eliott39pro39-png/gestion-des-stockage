@@ -55,6 +55,23 @@ with tempfile.TemporaryDirectory() as temp:
             raise AssertionError("Vague search request accepted: "+vague)
         except ValueError:
             pass
+    for bad_limit in (0, -1, 1.5):
+        try:
+            a.search_items(root,"steam",limit=bad_limit)
+            raise AssertionError("Invalid search limit accepted")
+        except ValueError:
+            pass
+    for bad_max in (0, -5, 2.5):
+        try:
+            a.search_items(root,"steam",max_entries=bad_max)
+            raise AssertionError("Invalid scan limit accepted")
+        except ValueError:
+            pass
+    try:
+        a.preview_rename(root/"Steam","Steam-new")
+        raise AssertionError("Directory rename accepted")
+    except ValueError:
+        pass
     import threading
     stop=threading.Event()
     stop.set()
