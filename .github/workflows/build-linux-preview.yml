@@ -27,6 +27,21 @@ jobs:
         run: PYTHONPATH=. python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Run regression tests
         run: PYTHONPATH=. python tests/test_assistant_tools.py
+      - name: Install GTK4 smoke-test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 xvfb xauth
+      - name: GTK4 application startup smoke test
+        run: |
+          set +e
+          timeout 12s xvfb-run -a /usr/bin/python3 app.py > /tmp/gtk-startup.log 2>&1
+          code=$?
+          set -e
+          cat /tmp/gtk-startup.log
+          if [ "$code" -ne 124 ]; then
+            echo "Expected running GTK app to be stopped by timeout, got $code"
+            exit 1
+          fi
       - name: Build Debian preview
         run: bash packaging/build-deb.sh 27.7.0
       - name: Verify package metadata and contents
