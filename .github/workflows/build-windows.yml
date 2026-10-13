@@ -40,6 +40,8 @@ jobs:
         run: |
           python -m py_compile app.py assistant_tools.py assistant_history.py smart_organizer.py windows/app_windows.py
           find versions -name app.py -exec python -m py_compile {} +
+      - name: Run assistant regression tests on Windows
+        run: PYTHONPATH=. python tests/test_assistant_tools.py
       - name: Verify storage detective and Windows update adapter
         run: |
           python - <<'PY'
