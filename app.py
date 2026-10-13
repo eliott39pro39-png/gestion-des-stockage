@@ -969,7 +969,9 @@ class Window(Gtk.ApplicationWindow):
     if query:run_search('search',query)
     else:speak('🔎 Dis-moi le nom du fichier à chercher !')
     return
-   if any(word in lower for word in ('fichier','fichiers','photo','photos','image','images','pdf','document','documents','vidéo','vidéos')):\n    run_search('search',message);return\n   if lower in ('salut','bonjour','hello','coucou','hey'):speak('Coucou !! 👋💙 Je suis prêt à t’aider !');return
+   if any(word in lower for word in ('fichier','fichiers','photo','photos','image','images','pdf','document','documents','vidéo','vidéos')):
+    run_search('search',message);return
+   if lower in ('salut','bonjour','hello','coucou','hey'):speak('Coucou !! 👋💙 Je suis prêt à t’aider !');return
    speak('🤔 Je ne comprends pas encore cette demande. Essaie « Trouve War Thunder », « Renomme test.txt » ou « Doublons » ! 💙')
   self.btn(composer,'➤ Envoyer',send)
   message_entry.connect('activate',send)
