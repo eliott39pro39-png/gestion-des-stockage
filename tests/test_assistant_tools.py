@@ -31,4 +31,20 @@ with tempfile.TemporaryDirectory() as temp:
         assert all(p.name!="shortcut" for p in a.search_items(root,"shortcut")[0])
     except (OSError,NotImplementedError):
         pass
+
+    # Search understands common French requests and file types.
+    (root/"photo-vacances.jpg").write_bytes(b"image")
+    (root/"rapport.pdf").write_bytes(b"pdf")
+    assert a.normalize_query("Trouve mes photos") == ["image"]
+    assert a.normalize_query("Cherche le fichier rapport.pdf") == ["rapport.pdf"]
+    assert any(p.name=="photo-vacances.jpg" for p in a.search_items(root,"trouve mes photos")[0])
+    assert any(p.name=="rapport.pdf" for p in a.search_items(root,"cherche mes pdfs")[0])
+    import threading
+    stop=threading.Event()
+    stop.set()
+    assert a.search_items(root,"rapport",cancel=stop)[1]
+    progress=[]
+    a.search_items(root,"missing",progress=lambda count,path:progress.append(count))
+    assert progress and progress[-1]>0
+
 print("Assistant guided tests passed")
