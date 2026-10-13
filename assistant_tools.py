@@ -8,7 +8,7 @@ def normalize_query(query):
     import unicodedata
     q = unicodedata.normalize("NFKD", query.casefold())
     q = "".join(c for c in q if not unicodedata.combining(c))
-    q = re.sub(r"[^\\w. -]", " ", q)
+    q = re.sub(r"[^\w. -]", " ", q)
     words = q.split()
     stop = {"trouve", "trouver", "cherche", "chercher", "recherche", "rechercher",
             "retrouve", "retrouver", "montre", "affiche", "moi", "mes", "mon",
