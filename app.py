@@ -140,7 +140,16 @@ class Window(Gtk.ApplicationWindow):
   def acknowledged():
    self.prefs['last_seen_version']=VERSION
    self.save_prefs()
-  self.dialog(self.tr('Nouveautés de la version ','What is new in version ')+VERSION,message,acknowledged)
+  d=Gtk.AlertDialog()
+  d.set_message(self.tr('Nouveautés de la version ','What is new in version ')+VERSION)
+  d.set_detail(message)
+  d.set_buttons([self.tr('Compris','Got it')])
+  def done(dialog,result):
+   try:
+    dialog.choose_finish(result)
+    acknowledged()
+   except GLib.Error:pass
+  d.choose(self,None,done)
   return False
  def on_key_pressed(self,_controller,keyval,_keycode,state):
   ctrl=bool(state & Gdk.ModifierType.CONTROL_MASK)
