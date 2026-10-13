@@ -19,11 +19,14 @@ def normalize_query(query):
             "retrouve", "retrouver", "montre", "affiche", "moi", "mes", "mon",
             "ma", "les", "des", "du", "de", "le", "la", "un", "une", "fichier",
             "fichiers", "dossier", "dossiers", "tous", "toutes", "dans", "sur",
-            "ordinateur", "disque", "stp", "svp", "je", "veux", "ou", "sont"}
+            "ordinateur", "disque", "stp", "svp", "je", "veux", "ou", "sont",
+            "find", "search", "show", "locate", "my", "me", "the", "a", "an",
+            "file", "files", "folder", "folders", "please", "for", "all"}
     aliases = {"photos": "image", "photo": "image", "images": "image",
-               "pdfs": "pdf", "documents": "document", "videos": "video"}
+               "pdfs": "pdf", "documents": "document", "videos": "video",
+               "pictures": "image"}
     terms = [aliases.get(w, w) for w in words if w not in stop]
-    return terms or words
+    return terms
 
 
 def search_items(folder, query, limit=30, max_entries=12000,
