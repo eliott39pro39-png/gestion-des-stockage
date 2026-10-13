@@ -77,6 +77,7 @@ def search_items(folder, query, limit=30, max_entries=12000,
                     except OSError:
                         continue
         except OSError:
+            truncated = True
             continue
     if progress is not None:
         progress(visited, str(root))
