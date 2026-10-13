@@ -41,6 +41,12 @@ with tempfile.TemporaryDirectory() as temp:
     assert a.normalize_query("Cherche le fichier rapport.pdf") == ["rapport.pdf"]
     assert any(p.name=="photo-vacances.jpg" for p in a.search_items(root,"trouve mes photos")[0])
     assert any(p.name=="rapport.pdf" for p in a.search_items(root,"cherche mes pdfs")[0])
+    # When a result limit is reached within a directory, report truncation.
+    limited, incomplete = a.search_items(root,"steam",limit=1)
+    assert len(limited)==1 and incomplete
+    # A low scan limit should also signal incomplete traversal.
+    _, incomplete = a.search_items(root,"missing",max_entries=1)
+    assert incomplete
     import threading
     stop=threading.Event()
     stop.set()
