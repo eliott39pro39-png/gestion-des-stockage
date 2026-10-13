@@ -32,6 +32,8 @@ def normalize_query(query):
 def search_items(folder, query, limit=30, max_entries=12000,
                  progress=None, cancel=None):
     """Bounded, cancellable traversal; progress callback receives scanned count."""
+    if not isinstance(limit, int) or not isinstance(max_entries, int) or limit < 1 or max_entries < 1:
+        raise ValueError("Les limites de recherche doivent être des entiers positifs.")
     root = pathlib.Path(folder).expanduser()
     if not root.is_dir() or root.is_symlink():
         raise ValueError("Choisis un dossier accessible, sans lien symbolique.")
@@ -87,7 +89,7 @@ def preview_rename(path, new_name):
             or "\x00" in name or pathlib.Path(name).name != name
             or (os.name == "nt" and (name.endswith(".") or name.endswith(" ")))):
         raise ValueError("Nom de fichier invalide.")
-    if source.is_symlink() or not source.exists():
+    if source.is_symlink() or not source.is_file():
         raise ValueError("Fichier introuvable ou lien symbolique.")
     target = source.with_name(name)
     if target == source or target.exists():
